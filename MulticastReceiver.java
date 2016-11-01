@@ -2,8 +2,6 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
-import java.util.Timer;
-import java.util.TimerTask;
 
 public class MulticastReceiver implements Runnable {
 

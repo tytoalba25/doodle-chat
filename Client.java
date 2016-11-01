@@ -23,6 +23,7 @@ public class Client {
 	static int port = -1;
 	static int ID = -1;
 	static ArrayList<InetAddress> group = new ArrayList();
+	static String channelName = "";
 	
 	public static void main(String args[]) {
 		Scanner in = new Scanner(System.in);
@@ -46,6 +47,7 @@ public class Client {
 				break;
 			case "join":
 				if(parts.length == 2) {
+					channelName = parts[1];
 					joinChannel(parts[1]);					
 				} else {
 					System.out.println("Format: join $channelName");
@@ -165,6 +167,11 @@ public class Client {
 				sockOut.write("join " + ID  + " " + channel + "\n\n");
 				sockOut.flush();
 				
+				String s = sockIn.readLine();
+				s = s.split("\\s+")[1];
+				initGroup(s);
+				
+				
 				initGroup(sockIn.readLine());
 				
 			} catch (IOException e) {
@@ -189,7 +196,7 @@ public class Client {
 			String IPs = member.replaceAll(":.*", "");
 			System.out.println(IPs);
 			try {
-				group.add(InetAddress.getByName(IP));
+				group.add(InetAddress.getByName(IPs));
 			} catch (UnknownHostException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -235,7 +242,7 @@ public class Client {
 			sock.close();
 			
 		} catch (IOException e) {
-			System.out.println("Faield to close resources");
+			System.out.println("Failed to close resources");
 			e.printStackTrace();
 		}
 	}
@@ -249,7 +256,7 @@ public class Client {
 		
 		DatagramSocket sock;
 		try {
-			sock = new DatagramSocket();
+			sock = new DatagramSocket(5556);
 			Thread receiver = new Thread(new MulticastReceiver(sock));
 			receiver.start();
 			
@@ -258,11 +265,19 @@ public class Client {
 			
 			while(chatting) {
 				message = in.nextLine();
-				if(message.equals("/quit"))
+				if(message.equals("/quit")) {
+					try {
+						sockOut.write("leave " + ID + " " + channelName + "\n\n");
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 					break;
+				}
 				multicast(sock, message);
 			}
 			
+			sock.close();
 			receiver.interrupt();
 			
 		} catch (SocketException e) {
@@ -280,14 +295,14 @@ public class Client {
 		DatagramPacket packet;
 		
 		for(int i = 0; i < group.size(); i++) {
-			packet = new DatagramPacket(buffer, buffer.length, group.get(i), 5555);
+			packet = new DatagramPacket(buffer, buffer.length, group.get(i), 5556);
 			try {
 				sock.send(packet);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			System.out.println("Sent message to peer #" + i);
+			System.out.println("Sent message to peer " + group.get(i).toString());
 		}
 	}
 	
