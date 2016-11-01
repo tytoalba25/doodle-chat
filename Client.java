@@ -142,7 +142,7 @@ public class Client {
 				sockOut.write("create " + ID + " " + channel + "\n\n");
 				sockOut.flush();
 				
-				System.out.println(sockIn.readLine() + "\n");
+				initGroup(sockIn.readLine());
 				
 			} catch (IOException e) {
 				System.out.println("Creation failed.");
@@ -165,15 +165,7 @@ public class Client {
 				sockOut.write("join " + ID  + " " + channel + "\n\n");
 				sockOut.flush();
 				
-				String allMembers = sockIn.readLine();
-				String[] members = allMembers.split(",");
-				
-				for(String member : members) {
-					// Replacing the extra colons that were at the end of the IP
-					String IPs = member.replaceAll(":.*", "");
-					System.out.println(IPs);
-					group.add(InetAddress.getByName(IP));
-				}
+				initGroup(sockIn.readLine());
 				
 			} catch (IOException e) {
 				System.out.println(e.getMessage());
@@ -186,6 +178,22 @@ public class Client {
 			
 			joined();
 			cleanUp();
+		}
+	}
+	
+	private static void initGroup(String incoming) {
+		String[] members = incoming.split(",");
+		
+		for(String member : members) {
+			// Replacing the extra colons that were at the end of the IP
+			String IPs = member.replaceAll(":.*", "");
+			System.out.println(IPs);
+			try {
+				group.add(InetAddress.getByName(IP));
+			} catch (UnknownHostException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 	}
 	

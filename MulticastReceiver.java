@@ -10,9 +10,15 @@ public class MulticastReceiver implements Runnable {
 	DatagramSocket sock = null;
 	
 	public MulticastReceiver(DatagramSocket sock) {
+		this.sock = sock;
+	}
+	
+	@Override
+	public void run() {		
 		try {
+			byte[] buffer;
 			while(true) {
-				byte[] buffer = new byte[65500];
+				buffer = new byte[65500];
 				
 				DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 				sock.receive(packet);
@@ -28,21 +34,6 @@ public class MulticastReceiver implements Runnable {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}		
-	}
-	
-	
-	class SayHello extends TimerTask {
-	    public void run() {
-	    	System.out.println("I are bot");
-	    }
-	}
-	
-	
-	@Override
-	public void run() {		
-		Timer timer = new Timer();
-		timer.schedule(new SayHello(), 0, 2500);
-		
 	}
 
 }
