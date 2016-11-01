@@ -1,24 +1,68 @@
 import java.util.ArrayList;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+import java.io.PrintStream;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 
 public class Tracker implements Runnable {
 	
-	private ArrayList<Channel> channels;
+	// Our static shared directory of channels
+	static ArrayList<Channel> channels;
 	
-	public Tracker() {
-		channels = new ArrayList<Channel>();
+	// Network stuff
+	Socket csocket;
+	Tracker(Socket csocket, ArrayList<Channel> channels) {
+		this.channels = channels;
+		this.csocket = csocket;
 	}
 	
-	public int addChannel(String n, String m) {
-		IP i = new IP(m);
-		Channel c = new Channel(n,i);
-		if (channels.contains(c)) {
-			return 0;
-		} else {
-			channels.add(new Channel(n, i));
-			return 1;
+	
+	public static void main(String args[]) throws Exception {
+		// Make our directory
+		channels = new ArrayList<Channel>();
+		
+		// Open a server socket, listen for connections and create threads for them
+		ServerSocket ssock = new ServerSocket(1234);
+		System.out.println("Listening");
+		while(true) {
+			Socket sock = ssock.accept();
+			System.out.println("Connected");
+			new Thread(new Tracker(sock, channels)).start();
 		}
 	}
 	
+	// Checks if a channel exists in the directory
+	// If it does, return the channel
+	// If it doesn't, return null
+	public Channel channelExists(String n) {
+		for (int i=0; i<channels.size(); i++) {
+			if (channels.get(i).name.equals(n)) {
+				return channels.get(i);
+			}
+		}
+		return null;
+	}
+	
+	// Add a channel to the directory
+	// If the channel already exists, return 0
+	// Otherwise create the channel and return 1
+	public int addChannel(String n) {
+		Channel c = new Channel(n);
+		for (int i=0; i<channels.size(); i++) {
+			if (channels.get(i).name.equals(n)) {
+				return 0;
+			}
+		}
+		channels.add(new Channel(n));
+		return 1;
+	}
+	
+	// Join a channel already in the directory
+	// If the channel doesn't exist, return 0
+	// Otherwise add the ip to the channel and return 1
 	public int joinChannel(String n, String m) {
 		for (int i=0; i<channels.size(); i++) {
 			if (channels.get(i).name.equals(n)) {
@@ -29,38 +73,154 @@ public class Tracker implements Runnable {
 		return 0;
 	}
 	
-	// NOT WORKING
+	// Leave a channel that you are already a member of
+	// If the channel or member doesn't exist, return 0
+	// Otherwise remove the member from the channel and return 1
 	public int leaveChannel(String n, String m) {
-		for (int i=0; i<channels.size(); i++) {
-			if (channels.get(i).name.equals(n)) {
-				channels.get(i).removeMember(new IP(m));
+		Channel c = channelExists(n);
+		if (c == null) {
+			return 0;
+		}
+		for (int i=0; i<c.members.size(); i++) {
+			if (c.members.get(i).address.equals(m)) {
+				c.members.remove(i);
 				return 1;
 			}
 		}
 		return 0;
 	}
 	
-	public void displayChannels() {
+	// Return a single line string listing the names of all channels seperated by commas
+	public String getChannels() {
+		String val = "";
 		for (int i=0; i<channels.size(); i++) {
-			System.out.print(channels.get(i));
+			val += channels.get(i);
+			if (i < channels.size()-1) {
+				val += ",";
+			}
+		}
+		return val;
+	}
+	
+	// Return a single line string listing the ip's of all members of a channel, seperated by commas
+	public String getMembers(String channel) {
+		String val = "";
+		Channel c = null;
+		for (int i=0; i<channels.size(); i++) {
+			if (channels.get(i).name.equals(channel)) {
+				c = channels.get(i);
+				break;
+			}
+		}
+		if (c == null) {
+			return "";
+		}
+		for (int i=0; i<c.members.size(); i++) {
+			val += c.members.get(i);
+			if (i < c.members.size()-1) {
+				val += ",";
+			}
+		}
+		return val;
+	}
+	
+	public void run() {
+		try {
+			// Create our input/output
+			BufferedReader in = new BufferedReader(new InputStreamReader(csocket.getInputStream()));
+			PrintStream out = new PrintStream(csocket.getOutputStream());
+			
+			// Read request
+			String input = in.readLine();
+			String output = "";
+			
+			// Process a get request
+			if (input.startsWith("get")) {
+				System.out.println("Processing get request");
+				output = getChannels();
+				output += "\n\n";
+			}
+			
+			// Process a create request
+			if (input.startsWith("create")) {
+				System.out.println("Processing create request");
+				String name = input.split("\\s+")[1];
+				if (addChannel(name) != 1 || joinChannel(name, csocket.getRemoteSocketAddress().toString()) != 1) {
+					output = "failure\n\n";
+				} else {
+					output = "success\n\n";
+				}
+			}
+			
+			// Process a join request
+			if (input.startsWith("join")) {
+				System.out.println("Processing join request");
+				String name = input.split("\\s+")[1];
+				if (joinChannel(name, csocket.getRemoteSocketAddress().toString()) != 1) {
+					output = "failure\n\n";
+				} else {
+					output = "success";
+					output += getMembers(name);
+					output += "\n\n";
+				}
+			}
+			
+			// Process a leave request
+			if (input.startsWith("leave")) {
+				System.out.println("Processing leave request");
+				String name = input.split("\\s+")[1];
+				if (leaveChannel(name, csocket.getRemoteSocketAddress().toString()) != 1) {
+					output = "failure\n\n";
+				} else {
+					output = "success\n\n";
+				}
+			}
+			
+			// Process a request-ping request NOT IMPLEMENTED
+			if (input.startsWith("request-ping")) {
+				output = "failure\n\n";
+			}
+
+			// Process a ping request NOT IMPLEMENTED
+			if (input.startsWith("ping")) {
+				output = "failure\n\n";
+			}
+			
+			// Send response
+			out.print(output);
+			
+			// Clean up
+			out.close();
+			in.close();
+			csocket.close();
+		} catch (IOException e) {
+			System.out.println(e);
 		}
 	}
 	
-	@Override
-	public void run() {
-		
-	}
-	
+	// Channel class
+	// These are individual members of the channels ArrayList
+	// Each one contains a name and a list of members, represented by IP objects
 	public class Channel {
 		public String name;
 		private ArrayList<IP> members;
 		
-		public Channel(String n, IP m) {
+		public Channel(String n) {
 			name = n;
 			members = new ArrayList<IP>();
-			members.add(m);
 		}
 		
+		public boolean sameName(Channel c) {
+			if (name == c.name) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+		
+		// Add a member to the channel
+		// If the member already exists, return 0
+		// Otherwise add the member and return 1
 		public int addMember(IP m) {
 			if (members.contains(m)) {
 				return 0;
@@ -70,6 +230,9 @@ public class Tracker implements Runnable {
 			}
 		}
 		
+		// Remove a member from the channel
+		// If the member doesn't exist, return 0
+		// Otherwise remove the member and return 1
 		public int removeMember(IP m) {
 			if (members.contains(m)) {
 				members.remove(m);
@@ -79,20 +242,27 @@ public class Tracker implements Runnable {
 			}
 		}
 		
+		// Return a string representing the channel
 		public String toString() {
-			String val = name + "\n";
-			for (int i=0; i<members.size(); i++) {
-				val += "\t" + members.get(i).toString() + "\n";
-			}
-			return val;
-		}
+			return name;
+		}	
 	}
 	
+	// IP class
+	// Just a simple container for IP addresses used as members of the Channel class
 	public class IP {
 		private String address;
 		
 		public IP(String i) {
 			address = i;
+		}
+		
+		public boolean sameName(IP i) {
+			if (address == i.address) {
+				return true;
+			} else {
+				return false;
+			}
 		}
 		
 		public String toString() {
