@@ -4,8 +4,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.ConnectException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Scanner;
 
 public class Client {
@@ -14,11 +19,15 @@ public class Client {
 	static BufferedWriter sockOut = null;
 	static String displayName = null;
 	static Boolean joined = false;
-	
+	static String IP = "";
+	static int port = -1;
+	static int ID = -1;
+	static ArrayList<InetAddress> group = new ArrayList();
 	
 	public static void main(String args[]) {
 		Scanner in = new Scanner(System.in);
-		init(in);
+		init(in, args);
+		register();
 		while (!joined) {
 			System.out.println("What would you like to do " + displayName + "? ( list | create -channelName- | join -channelName- | quit)");
 			String input = in.nextLine();
@@ -43,12 +52,7 @@ public class Client {
 				}
 				break;
 			case "quit":
-				try {
-					sock.close();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+				// Tell server you're leaving and to free up the ID
 				System.exit(0);
 			default:
 				System.out.println("Invalid Entry.");
@@ -59,30 +63,49 @@ public class Client {
 		//TODO: Talk loop
 		System.out.println("This is where chatting would take place");
 		
+		chatLoop(in);
 		
-		// Clean Up
-		cleanUp();
 
-		// Done
+		// Exit normally
 		System.exit(0);
 	}
 	
 	// Create connections and resources, catch any issues
-	private static void init(Scanner in) {
-		System.out.println("Please enter tracker IP:Port");
-		String tracker = in.nextLine();
+	private static void init(Scanner in, String args[]) {
+		
+		String tracker = "";
+		
+		if(args.length < 1) {
+			System.out.println("No args");
+			System.out.println("Please enter tracker IP:Port");
+			tracker = in.nextLine();
+			
+		} else {
+			tracker = args[0];
+		}
 		String[] parts = tracker.split(":");
 		try {
-			sock = new Socket(parts[0], Integer.parseInt(parts[1]));
+			IP = parts[0];
+			port = Integer.parseInt(parts[1]);
+		} catch (NumberFormatException e) {
+			e.printStackTrace();
+			System.exit(2);
+		}
+		
+		System.out.println("Enter display-name");
+		displayName = in.nextLine();
+	}
+	
+	private static void openSocket() {
+			
+		try {
+			sock = new Socket(IP, port);
 			sockIn = new BufferedReader(new InputStreamReader(sock.getInputStream()));
 			sockOut = new BufferedWriter(new OutputStreamWriter(sock.getOutputStream()));
 		} catch (UnknownHostException e) {
 			System.out.println("Cannot connect to tracker");
 			e.printStackTrace();
 			System.exit(1);
-		} catch (NumberFormatException e) {
-			e.printStackTrace();
-			System.exit(2);
 		} catch (ConnectException e) {
 			System.out.println("Failed to connect to server.");
 			//e.printStackTrace();
@@ -92,18 +115,17 @@ public class Client {
 			e.printStackTrace();
 			System.exit(4);
 		}
-		
-		System.out.println("Enter display-name");
-		displayName = in.nextLine();
 	}
 	
 	//TODO: Connects to server to acquire channel list and outputs to console
 	private static void listChannels() {
 		try {
-			sockOut.write("get\n\n");
+			openSocket();
+			sockOut.write("get " + ID + "\n\n");
 			sockOut.flush();
 			
-			System.out.println(sockIn.readLine());
+			System.out.println(sockIn.readLine() + "\n");
+			cleanUp();
 			
 		} catch (IOException e) {
 			System.out.println("List failed.");
@@ -114,12 +136,13 @@ public class Client {
 	
 	//TODO: Creates and joins a channel
 	private static void createChannel(String channel) {
+		openSocket();
 		if(channelExists()) {
 			try {
-				sockOut.write("create " + channel + "\n\n");
+				sockOut.write("create " + ID + " " + channel + "\n\n");
 				sockOut.flush();
 				
-				System.out.println(sockIn.readLine());
+				System.out.println(sockIn.readLine() + "\n");
 				
 			} catch (IOException e) {
 				System.out.println("Creation failed.");
@@ -129,29 +152,66 @@ public class Client {
 			
 			
 			joined();
+			cleanUp();
 		}
 	}
 	
 	
 	//TODO: Connects to pre-existing channel
 	private static void joinChannel(String channel) {
+		openSocket();
 		if(channelExists()) {
 			try {
-				sockOut.write("join " + channel + "\n\n");
+				sockOut.write("join " + ID  + " " + channel + "\n\n");
 				sockOut.flush();
 				
-				System.out.println(sockIn.readLine());
+				String allMembers = sockIn.readLine();
+				String[] members = allMembers.split(",");
+				
+				for(String member : members) {
+					// Replacing the extra colons that were at the end of the IP
+					String IPs = member.replaceAll(":.*", "");
+					System.out.println(IPs);
+					group.add(InetAddress.getByName(IP));
+				}
 				
 			} catch (IOException e) {
-				System.out.println("Creation failed.");
-				e.printStackTrace();
+				System.out.println(e.getMessage());
+				//e.printStackTrace();
 				System.exit(3);
 			}
 			
-			
+			// Get list of people
+			// Convert to InetAddress
 			
 			joined();
+			cleanUp();
 		}
+	}
+	
+	
+	private static void register() {
+		openSocket();
+		
+		try {
+				sockOut.write("register\n\n");
+				sockOut.flush();
+				
+				String sID = sockIn.readLine();
+				System.out.println("Your ID is: " + sID + "\n");
+				ID = Integer.parseInt(sID);
+				
+			} catch (NumberFormatException e) {
+				System.out.println("Registration Failed..");
+				e.printStackTrace();
+				System.exit(7);
+			} catch (IOException e) {
+				System.out.println("Registration Failed..");
+				e.printStackTrace();
+				System.exit(3);
+			}
+		
+		cleanUp();
 	}
 	
 	// Updates join status to exit while loop
@@ -176,4 +236,51 @@ public class Client {
 	private static Boolean channelExists() {
 		return true;
 	}
+	
+	private static void chatLoop(Scanner in) {
+		
+		DatagramSocket sock;
+		try {
+			sock = new DatagramSocket();
+			Thread receiver = new Thread(new MulticastReceiver(sock));
+			receiver.start();
+			
+			Boolean chatting = true;
+			String message = "";
+			
+			while(chatting) {
+				message = in.nextLine();
+				if(message.equals("/quit"))
+					break;
+				multicast(sock, message);
+			}
+			
+			receiver.interrupt();
+			
+		} catch (SocketException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		System.out.println("Quiting...");
+		
+	}
+	
+	private static void multicast(DatagramSocket sock, String message) {
+		System.out.println(message);
+		byte[] buffer = message.getBytes();
+		DatagramPacket packet;
+		
+		for(int i = 0; i < group.size(); i++) {
+			packet = new DatagramPacket(buffer, buffer.length, group.get(i), 5555);
+			try {
+				sock.send(packet);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			System.out.println("Sent message to peer #" + i);
+		}
+	}
+	
 }
