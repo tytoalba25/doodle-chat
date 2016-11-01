@@ -2,6 +2,7 @@ import java.util.ArrayList;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.InetAddress;
 
 import java.io.PrintStream;
 import java.io.BufferedReader;
@@ -11,6 +12,8 @@ public class Tracker implements Runnable {
 	
 	// Our static shared directory of channels
 	static ArrayList<Channel> channels;
+
+	static int id;
 	
 	// Network stuff
 	Socket csocket;
@@ -19,18 +22,50 @@ public class Tracker implements Runnable {
 		this.csocket = csocket;
 	}
 	
-	
 	public static void main(String args[]) throws Exception {
+		// Check arguments
+		if (args.length != 1) {
+			System.out.println("Usage:\n\t java Tracker <port>");
+			System.exit(1);
+		}
+		int port = 0;
+		try {
+			port = Integer.parseInt(args[0]);
+		} catch (NumberFormatException e) {
+			System.out.println("Invalid port");
+			System.exit(1);
+		}
+
+		// Display the ip that should be used to connect to the tracker
+		System.out.println("In order to connect to the tracker, use:\n\tAddress: " + InetAddress.getLocalHost() + "\n\tPort: " + port);
+
 		// Make our directory
 		channels = new ArrayList<Channel>();
-		
+
+		// Set up our identifier
+		id = 1;
+
 		// Open a server socket, listen for connections and create threads for them
-		ServerSocket ssock = new ServerSocket(1234);
-		System.out.println("Listening");
+		ServerSocket ssock = new ServerSocket(port);
+		System.out.println("Listening for clients on port " + port);
 		while(true) {
 			Socket sock = ssock.accept();
-			System.out.println("Connected");
 			new Thread(new Tracker(sock, channels)).start();
+		}
+	}
+
+	// Produce a new ID
+	public int giveID() {
+		id += 1;
+		return id - 1;
+	}
+
+	// Make sure that the ID given is registered
+	public boolean validID(int i) {
+		if (i > id) {
+			return false;
+		} else {
+			return true;
 		}
 	}
 	
@@ -51,10 +86,8 @@ public class Tracker implements Runnable {
 	// Otherwise create the channel and return 1
 	public int addChannel(String n) {
 		Channel c = new Channel(n);
-		for (int i=0; i<channels.size(); i++) {
-			if (channels.get(i).name.equals(n)) {
-				return 0;
-			}
+		if (channelExists(n) != null) {
+			return 0;
 		}
 		channels.add(new Channel(n));
 		return 1;
@@ -63,12 +96,11 @@ public class Tracker implements Runnable {
 	// Join a channel already in the directory
 	// If the channel doesn't exist, return 0
 	// Otherwise add the ip to the channel and return 1
-	public int joinChannel(String n, String m) {
-		for (int i=0; i<channels.size(); i++) {
-			if (channels.get(i).name.equals(n)) {
-				channels.get(i).addMember(new IP(m));
-				return 1;
-			}
+	public int joinChannel(String n, String m, int id) {
+		Channel c = channelExists(n);
+		if (c != null) {
+			c.addMember(new Member(m, id));
+			return 1;
 		}
 		return 0;
 	}
@@ -76,13 +108,13 @@ public class Tracker implements Runnable {
 	// Leave a channel that you are already a member of
 	// If the channel or member doesn't exist, return 0
 	// Otherwise remove the member from the channel and return 1
-	public int leaveChannel(String n, String m) {
+	public int leaveChannel(String n, int id) {
 		Channel c = channelExists(n);
 		if (c == null) {
 			return 0;
 		}
 		for (int i=0; i<c.members.size(); i++) {
-			if (c.members.get(i).address.equals(m)) {
+			if (c.members.get(i).id == id) {
 				c.members.remove(i);
 				return 1;
 			}
@@ -126,26 +158,45 @@ public class Tracker implements Runnable {
 	
 	public void run() {
 		try {
+			System.out.println("Client connected from " + csocket.getRemoteSocketAddress().toString());
+
 			// Create our input/output
 			BufferedReader in = new BufferedReader(new InputStreamReader(csocket.getInputStream()));
 			PrintStream out = new PrintStream(csocket.getOutputStream());
 			
 			// Read request
 			String input = in.readLine();
+			System.out.println("\tInput: " + input);
 			String output = "";
+
+			// Split message by space
+			String[] parts = input.split("\\s+");
 			
+			// If any errors occur (most likely nullpointer) assume malformed request
+			try {
+
+			// Process a register request
+			if (input.startsWith("register")) {
+				System.out.println("\tProcessing register request");
+				output = Integer.toString(giveID());
+				output += "\n\n";
+			// If not a register request then make sure that id is valid
+			} else if (!validID(Integer.parseInt(parts[1]))) {
+				output = "failure";
+				input = "";
+			}
+
 			// Process a get request
 			if (input.startsWith("get")) {
-				System.out.println("Processing get request");
+				System.out.println("\tProcessing get request");
 				output = getChannels();
 				output += "\n\n";
 			}
 			
 			// Process a create request
 			if (input.startsWith("create")) {
-				System.out.println("Processing create request");
-				String name = input.split("\\s+")[1];
-				if (addChannel(name) != 1 || joinChannel(name, csocket.getRemoteSocketAddress().toString()) != 1) {
+				System.out.println("\tProcessing create request");
+				if (addChannel(parts[2]) != 1 || joinChannel(parts[2], csocket.getRemoteSocketAddress().toString().substring(1), Integer.parseInt(parts[1])) != 1) {
 					output = "failure\n\n";
 				} else {
 					output = "success\n\n";
@@ -154,22 +205,20 @@ public class Tracker implements Runnable {
 			
 			// Process a join request
 			if (input.startsWith("join")) {
-				System.out.println("Processing join request");
-				String name = input.split("\\s+")[1];
-				if (joinChannel(name, csocket.getRemoteSocketAddress().toString()) != 1) {
+				System.out.println("\tProcessing join request");
+				if (joinChannel(parts[2], csocket.getRemoteSocketAddress().toString().substring(1), Integer.parseInt(parts[1])) != 1) {
 					output = "failure\n\n";
 				} else {
-					output = "success";
-					output += getMembers(name);
+					output = "success ";
+					output += getMembers(parts[2]);
 					output += "\n\n";
 				}
 			}
 			
 			// Process a leave request
 			if (input.startsWith("leave")) {
-				System.out.println("Processing leave request");
-				String name = input.split("\\s+")[1];
-				if (leaveChannel(name, csocket.getRemoteSocketAddress().toString()) != 1) {
+				System.out.println("\tProcessing leave request");
+				if (leaveChannel(parts[2], Integer.parseInt(parts[1])) != 1) {
 					output = "failure\n\n";
 				} else {
 					output = "success\n\n";
@@ -186,13 +235,20 @@ public class Tracker implements Runnable {
 				output = "failure\n\n";
 			}
 			
+			} catch (Exception e) {
+				System.out.println(e);
+				output = "invalid\n\n";
+			}
+
 			// Send response
 			out.print(output);
+			out.flush();
 			
 			// Clean up
 			out.close();
 			in.close();
 			csocket.close();
+
 		} catch (IOException e) {
 			System.out.println(e);
 		}
@@ -200,45 +256,25 @@ public class Tracker implements Runnable {
 	
 	// Channel class
 	// These are individual members of the channels ArrayList
-	// Each one contains a name and a list of members, represented by IP objects
+	// Each one contains a name and a list of members, represented by Member objects
 	public class Channel {
 		public String name;
-		private ArrayList<IP> members;
+		private ArrayList<Member> members;
 		
 		public Channel(String n) {
 			name = n;
-			members = new ArrayList<IP>();
-		}
-		
-		public boolean sameName(Channel c) {
-			if (name == c.name) {
-				return true;
-			} else {
-				return false;
-			}
+			members = new ArrayList<Member>();
 		}
 		
 		// Add a member to the channel
 		// If the member already exists, return 0
 		// Otherwise add the member and return 1
-		public int addMember(IP m) {
+		public int addMember(Member m) {
 			if (members.contains(m)) {
 				return 0;
 			} else {
 				members.add(m);
 				return 1;
-			}
-		}
-		
-		// Remove a member from the channel
-		// If the member doesn't exist, return 0
-		// Otherwise remove the member and return 1
-		public int removeMember(IP m) {
-			if (members.contains(m)) {
-				members.remove(m);
-				return 1;
-			} else {
-				return 0;
 			}
 		}
 		
@@ -248,21 +284,15 @@ public class Tracker implements Runnable {
 		}	
 	}
 	
-	// IP class
-	// Just a simple container for IP addresses used as members of the Channel class
-	public class IP {
+	// Member class
+	// Contains a pairing of the user's ip address and unique id
+	public class Member {
 		private String address;
+		private int id;
 		
-		public IP(String i) {
-			address = i;
-		}
-		
-		public boolean sameName(IP i) {
-			if (address == i.address) {
-				return true;
-			} else {
-				return false;
-			}
+		public Member(String a, int i) {
+			address = a;
+			id = i;
 		}
 		
 		public String toString() {
