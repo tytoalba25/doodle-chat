@@ -113,6 +113,7 @@ public class Tracker implements Runnable {
 		if (c == null) {
 			return 0;
 		}
+		//System.out.println(getMembers(n));
 		for (int i=0; i<c.members.size(); i++) {
 			if (c.members.get(i).id == id) {
 				c.members.remove(i);
@@ -154,7 +155,7 @@ public class Tracker implements Runnable {
 			}
 		}
 		return val;
-	}
+	}	
 	
 	public void run() {
 		try {
@@ -196,7 +197,7 @@ public class Tracker implements Runnable {
 			// Process a create request
 			if (input.startsWith("create")) {
 				System.out.println("\tProcessing create request");
-				if (addChannel(parts[2]) != 1 || joinChannel(parts[2], csocket.getRemoteSocketAddress().toString().substring(1), Integer.parseInt(parts[1])) != 1) {
+				if (addChannel(parts[2]) != 1) {
 					output = "failure\n\n";
 				} else {
 					output = "success\n\n";
