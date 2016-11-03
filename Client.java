@@ -168,13 +168,6 @@ public class Client {
 			sockOut.write("join " + ID  + " " + channel + "\n\n");
 			sockOut.flush();
 
-			String s = sockIn.readLine();
-			s = s.split("\\s+")[1];
-			initGroup(s);
-
-
-			initGroup(sockIn.readLine());
-
 		} catch (IOException e) {
 			System.out.println(e.getMessage());
 			//e.printStackTrace();
@@ -200,9 +193,6 @@ public class Client {
 				String s = sockIn.readLine();
 				s = s.split("\\s+")[1];
 				initGroup(s);
-				
-				
-				initGroup(sockIn.readLine());
 				
 			} catch (IOException e) {
 				System.out.println(e.getMessage());
@@ -306,16 +296,18 @@ public class Client {
 			
 			while(chatting) {
 				message = in.nextLine();
-				if(message.equals("/quit")) {
+				if(message.equals("")) {
 					try {
 						sockOut.write("leave " + ID + " " + channelName + "\n\n");
+						sockOut.flush();
 					} catch (IOException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
 					break;
+				} else {
+					multicast(sock, (displayName + ": " + message));
 				}
-				multicast(sock, (displayName + ": " + message));
 			}
 			
 			sock.close();
@@ -330,6 +322,10 @@ public class Client {
 		
 	}
 	
+	private synchronized static void display(String message) {
+		System.out.println(message);
+	}
+	
 	private static synchronized void multicast(DatagramSocket sock, String message) {
 		//System.out.println(message);
 		byte[] buffer = message.getBytes();
@@ -338,6 +334,7 @@ public class Client {
 		for(int i = 0; i < group.size(); i++) {
 			packet = new DatagramPacket(buffer, buffer.length, group.get(i), 5556);
 			try {
+				display("Sending to: " + group.get(i).toString());
 				sock.send(packet);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block

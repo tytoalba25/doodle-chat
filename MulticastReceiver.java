@@ -35,7 +35,7 @@ public class MulticastReceiver implements Runnable {
 				if(packet.getAddress().equals(tracker)) {
 					trackerMessage(message);
 				} else {
-					System.out.println(message);					
+					display(message);					
 				}
 			}
 		} catch (SocketException e) {
@@ -47,6 +47,9 @@ public class MulticastReceiver implements Runnable {
 		}		
 	}
 	
+	private synchronized void display(String message) {
+		System.out.println(message);
+	}
 	
 	private void trackerMessage(String message) {
 		String[] parts = message.split(" ");
@@ -54,11 +57,11 @@ public class MulticastReceiver implements Runnable {
 		switch(parts[0]) {
 		
 		case "update":
-			System.out.println("New members: " + parts[1]);
+			display("New members: " + parts[1]);
 			updateMembers(parts[1]);
 			break;
 		default:
-			System.err.println("Unknown tracker message: \"" + message + "\"");
+			display("Unknown tracker message: \"" + message + "\"");
 			break;
 		}
 	}
