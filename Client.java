@@ -36,7 +36,7 @@ public class Client {
 			switch(parts[0].toLowerCase()) {
 
 			case "list":
-				listChannels();
+				System.out.println(listChannels() + "\n");
 				break;
 			case "create":
 				if(parts.length == 2) {
@@ -106,13 +106,12 @@ public class Client {
 			sockOut = new BufferedWriter(new OutputStreamWriter(sock.getOutputStream()));
 		} catch (UnknownHostException e) {
 			System.out.println("Cannot connect to tracker");
-			e.printStackTrace();
+			//e.printStackTrace();
 			System.exit(1);
 		} catch (ConnectException e) {
 			System.out.println("Failed to connect to server.");
 			//e.printStackTrace();
-			//System.exit(3);
-			System.out.println("DEBUG: Continuing without connection.");
+			System.exit(3);
 		} catch (IOException e) {
 			e.printStackTrace();
 			System.exit(4);
@@ -120,49 +119,80 @@ public class Client {
 	}
 	
 	//TODO: Connects to server to acquire channel list and outputs to console
-	private static void listChannels() {
+	private static String listChannels() {
 		try {
 			openSocket();
 			sockOut.write("get " + ID + "\n\n");
 			sockOut.flush();
 			
-			System.out.println(sockIn.readLine() + "\n");
+			String message = sockIn.readLine();
 			cleanUp();
+			return message;
 			
 		} catch (IOException e) {
 			System.out.println("List failed.");
 			e.printStackTrace();
 			System.exit(3);
 		}
+		return null;
 	}
 	
 	//TODO: Creates and joins a channel
 	private static void createChannel(String channel) {
-		openSocket();
-		if(channelExists()) {
+		if(!channelExists(channel)) {
+			openSocket();
 			try {
 				sockOut.write("create " + ID + " " + channel + "\n\n");
 				sockOut.flush();
-				
-				initGroup(sockIn.readLine());
+
+				String reply = sockIn.readLine();
+				if(reply.equals("success")) {
+					joinCreatedChannel(channel);
+				} else {
+					System.out.println(reply);
+				}
 				
 			} catch (IOException e) {
 				System.out.println("Creation failed.");
 				e.printStackTrace();
 				System.exit(3);
 			}
-			
-			
-			joined();
 			cleanUp();
 		}
 	}
 	
 	
+	private static void joinCreatedChannel(String channel) {
+		openSocket();
+		try {
+			sockOut.write("join " + ID  + " " + channel + "\n\n");
+			sockOut.flush();
+
+			String s = sockIn.readLine();
+			s = s.split("\\s+")[1];
+			initGroup(s);
+
+
+			initGroup(sockIn.readLine());
+
+		} catch (IOException e) {
+			System.out.println(e.getMessage());
+			//e.printStackTrace();
+			System.exit(3);
+		}
+
+		// Get list of people
+		// Convert to InetAddress
+
+		joined();
+		cleanUp();
+	}
+	
+	
 	//TODO: Connects to pre-existing channel
 	private static void joinChannel(String channel) {
-		openSocket();
-		if(channelExists()) {
+		if(channelExists(channel)) {
+			openSocket();
 			try {
 				sockOut.write("join " + ID  + " " + channel + "\n\n");
 				sockOut.flush();
@@ -193,7 +223,7 @@ public class Client {
 		
 		for(String member : members) {
 			// Replacing the extra colons that were at the end of the IP
-			String IPs = member.replaceAll(":.*", "");
+			String IPs = member.replaceAll(":.*", ""); // TODO: Does the server still send port numbers?
 			System.out.println(IPs);
 			try {
 				group.add(InetAddress.getByName(IPs));
@@ -248,8 +278,19 @@ public class Client {
 	}
 	
 	// TODO: Checks if the channel you are attempting to join or create already exists
-	private static Boolean channelExists() {
-		return true;
+	private static Boolean channelExists(String channel) {
+		
+		String channelList = listChannels();
+		//System.out.println(channelList);
+		String[] channels = channelList.split(",");
+		
+		for(int i = 0; i < channels.length; i++) {
+			if(channel.equals(channels[i]))
+				return true;
+		}
+		
+		
+		return false;
 	}
 	
 	private static void chatLoop(Scanner in) {
@@ -257,7 +298,7 @@ public class Client {
 		DatagramSocket sock;
 		try {
 			sock = new DatagramSocket(5556);
-			Thread receiver = new Thread(new MulticastReceiver(sock));
+			Thread receiver = new Thread(new MulticastReceiver(IP, sock, group));
 			receiver.start();
 			
 			Boolean chatting = true;
@@ -274,7 +315,7 @@ public class Client {
 					}
 					break;
 				}
-				multicast(sock, message);
+				multicast(sock, (displayName + ": " + message));
 			}
 			
 			sock.close();
@@ -289,8 +330,8 @@ public class Client {
 		
 	}
 	
-	private static void multicast(DatagramSocket sock, String message) {
-		System.out.println(message);
+	private static synchronized void multicast(DatagramSocket sock, String message) {
+		//System.out.println(message);
 		byte[] buffer = message.getBytes();
 		DatagramPacket packet;
 		
@@ -302,7 +343,7 @@ public class Client {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			System.out.println("Sent message to peer " + group.get(i).toString());
+			//System.out.println("Sent message to peer " + group.get(i).toString());
 		}
 	}
 	
