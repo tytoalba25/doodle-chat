@@ -1,8 +1,11 @@
 import java.util.ArrayList;
 import java.io.IOException;
+import java.net.UnknownHostException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.InetAddress;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 
 import java.io.PrintStream;
 import java.io.BufferedReader;
@@ -100,6 +103,7 @@ public class Tracker implements Runnable {
 		Channel c = channelExists(n);
 		if (c != null) {
 			c.addMember(new Member(m, id));
+			updateMembers(n);
 			return 1;
 		}
 		return 0;
@@ -113,10 +117,10 @@ public class Tracker implements Runnable {
 		if (c == null) {
 			return 0;
 		}
-		//System.out.println(getMembers(n));
 		for (int i=0; i<c.members.size(); i++) {
 			if (c.members.get(i).id == id) {
 				c.members.remove(i);
+				updateMembers(n);
 				return 1;
 			}
 		}
@@ -149,14 +153,54 @@ public class Tracker implements Runnable {
 			return "";
 		}
 		for (int i=0; i<c.members.size(); i++) {
-			val += c.members.get(i);
+			val += c.members.get(i).toString().split(":")[0];
 			if (i < c.members.size()-1) {
 				val += ",";
 			}
 		}
 		return val;
-	}	
-	
+	}
+
+	// Send a message to update the members of a channel when a change in membership occurs
+	public int updateMembers(String n) {
+		System.out.println("UPDATING MEMBERS");
+		Channel c = channelExists(n);
+		if (c == null) {
+			return 0;
+		}
+		String message = "update ";
+		message += getMembers(n);
+		message += "\n\n";
+
+		DatagramSocket sock;
+		byte[] buffer = message.getBytes();
+		
+		try {
+			sock = new DatagramSocket(5556);
+		} catch (IOException e) {
+			return 0;
+		}
+
+		InetAddress ip;
+		DatagramPacket packet;
+		for (int i=0; i<c.members.size(); i++) {
+			try {
+			ip = InetAddress.getByName(c.members.get(i).toString().split(":")[0]);
+			packet = new DatagramPacket(buffer, buffer.length, ip, 5556);
+				sock.send(packet);
+			} catch (IOException e) {
+				return 0;
+			}
+		}
+
+		sock.close();
+
+		System.out.println("\tUpdate sent to " + getMembers(n));
+		return 1;
+	}
+		
+
+	// This is the thread called when a client connects to the Tracker
 	public void run() {
 		try {
 			System.out.println("Client connected from " + csocket.getRemoteSocketAddress().toString());
@@ -271,12 +315,13 @@ public class Tracker implements Runnable {
 		// If the member already exists, return 0
 		// Otherwise add the member and return 1
 		public int addMember(Member m) {
-			if (members.contains(m)) {
-				return 0;
-			} else {
-				members.add(m);
-				return 1;
+			for (int i=0; i<members.size(); i++) {
+				if (m.getID() == members.get(i).getID()) {
+					return 0;
+				}
 			}
+			members.add(m);
+			return 1;
 		}
 		
 		// Return a string representing the channel
@@ -296,6 +341,10 @@ public class Tracker implements Runnable {
 			id = i;
 		}
 		
+		public int getID() {
+			return id;
+		}
+
 		public String toString() {
 			return address;
 		}
