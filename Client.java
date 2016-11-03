@@ -22,7 +22,7 @@ public class Client {
 	static String IP = "";
 	static int port = -1;
 	static int ID = -1;
-	static ArrayList<InetAddress> group = new ArrayList();
+	static ArrayList<InetAddress> group = new ArrayList<InetAddress>();
 	static String channelName = "";
 	
 	public static void main(String args[]) {
