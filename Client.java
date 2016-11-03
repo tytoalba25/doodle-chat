@@ -177,7 +177,7 @@ public class Client {
 		// Get list of people
 		// Convert to InetAddress
 
-		joined();
+		joined(channel);
 		cleanUp();
 	}
 	
@@ -203,7 +203,7 @@ public class Client {
 			// Get list of people
 			// Convert to InetAddress
 			
-			joined();
+			joined(channel);
 			cleanUp();
 		}
 	}
@@ -250,7 +250,8 @@ public class Client {
 	}
 	
 	// Updates join status to exit while loop
-	private static void joined() {
+	private static void joined(String channel) {
+		channelName = channel;
 		joined = true;
 	}
 	
@@ -298,8 +299,10 @@ public class Client {
 				message = in.nextLine();
 				if(message.equals("/quit")) {
 					try {
+						openSocket();
 						sockOut.write("leave " + ID + " " + channelName + "\n\n");
 						sockOut.flush();
+						cleanUp();
 					} catch (IOException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -334,7 +337,6 @@ public class Client {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			//System.out.println("Sent message to peer " + group.get(i).toString());
 		}
 	}
 	

@@ -35,9 +35,9 @@ public class MulticastReceiver implements Runnable {
 				String message = new String(packet.getData());
 				if(packet.getAddress().equals(tracker)) {
 					trackerMessage(message);
-				} else {
-					display(message);					
-				}
+				} else if(!packet.getAddress().equals(InetAddress.getLocalHost())) {
+					display(message);
+				} 
 			}
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block
