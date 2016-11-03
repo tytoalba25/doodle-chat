@@ -14,6 +14,7 @@ public class MulticastReceiver implements Runnable {
 	
 	public MulticastReceiver(String IP, DatagramSocket sock, ArrayList<InetAddress> group) {
 		this.sock = sock;
+		this.group = group;
 		try {
 			tracker = InetAddress.getByName(IP);
 		} catch (UnknownHostException e) {
@@ -69,8 +70,7 @@ public class MulticastReceiver implements Runnable {
 	private synchronized void updateMembers(String members) {
 		try {
 			String[] peers = members.split(",");
-			group = new ArrayList<InetAddress>();
-			
+			group.clear();
 			for(String peer : peers) {
 				group.add(InetAddress.getByName(peer));
 			}

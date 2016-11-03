@@ -296,7 +296,7 @@ public class Client {
 			
 			while(chatting) {
 				message = in.nextLine();
-				if(message.equals("")) {
+				if(message.equals("/quit")) {
 					try {
 						sockOut.write("leave " + ID + " " + channelName + "\n\n");
 						sockOut.flush();
@@ -306,6 +306,7 @@ public class Client {
 					}
 					break;
 				} else {
+					System.out.println("Multicasting message");
 					multicast(sock, (displayName + ": " + message));
 				}
 			}
@@ -330,6 +331,8 @@ public class Client {
 		//System.out.println(message);
 		byte[] buffer = message.getBytes();
 		DatagramPacket packet;
+		
+		System.out.println("Sending message to " + group.size() + " peers!");
 		
 		for(int i = 0; i < group.size(); i++) {
 			packet = new DatagramPacket(buffer, buffer.length, group.get(i), 5556);
