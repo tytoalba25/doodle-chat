@@ -295,10 +295,15 @@ public class Client {
 			Boolean chatting = true;
 			String message = "";
 			
+			multicast(sock, displayName + " has joined the chat.");
+			
 			while(chatting) {
 				message = in.nextLine();
 				if(message.equals("/quit")) {
 					try {
+						
+						multicast(sock, displayName + " has left the chat.");
+						
 						openSocket();
 						sockOut.write("leave " + ID + " " + channelName + "\n\n");
 						sockOut.flush();
