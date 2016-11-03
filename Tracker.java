@@ -224,7 +224,6 @@ public class Tracker implements Runnable {
 			if (input.startsWith("register")) {
 				System.out.println("\tProcessing register request");
 				output = Integer.toString(giveID());
-				output += "\n\n";
 			// If not a register request then make sure that id is valid
 			} else if (!validID(Integer.parseInt(parts[1]))) {
 				output = "failure";
@@ -235,16 +234,15 @@ public class Tracker implements Runnable {
 			if (input.startsWith("get")) {
 				System.out.println("\tProcessing get request");
 				output = getChannels();
-				output += "\n\n";
 			}
 			
 			// Process a create request
 			if (input.startsWith("create")) {
 				System.out.println("\tProcessing create request");
 				if (addChannel(parts[2]) != 1) {
-					output = "failure\n\n";
+					output = "failure";
 				} else {
-					output = "success\n\n";
+					output = "success";
 				}
 			}
 			
@@ -252,11 +250,11 @@ public class Tracker implements Runnable {
 			if (input.startsWith("join")) {
 				System.out.println("\tProcessing join request");
 				if (joinChannel(parts[2], csocket.getRemoteSocketAddress().toString().substring(1), Integer.parseInt(parts[1])) != 1) {
-					output = "failure\n\n";
+					output = "failure";
 				} else {
 					output = "success ";
 					output += getMembers(parts[2]);
-					output += "\n\n";
+					output += "";
 				}
 			}
 			
@@ -264,29 +262,29 @@ public class Tracker implements Runnable {
 			if (input.startsWith("leave")) {
 				System.out.println("\tProcessing leave request");
 				if (leaveChannel(parts[2], Integer.parseInt(parts[1])) != 1) {
-					output = "failure\n\n";
+					output = "failure";
 				} else {
-					output = "success\n\n";
+					output = "success";
 				}
 			}
 			
 			// Process a request-ping request NOT IMPLEMENTED
 			if (input.startsWith("request-ping")) {
-				output = "failure\n\n";
+				output = "failure";
 			}
 
 			// Process a ping request NOT IMPLEMENTED
 			if (input.startsWith("ping")) {
-				output = "failure\n\n";
+				output = "failure";
 			}
 			
 			} catch (Exception e) {
 				System.out.println(e);
-				output = "invalid\n\n";
+				output = "invalid";
 			}
 
 			// Send response
-			out.print(output);
+			out.println(output);
 			out.flush();
 			
 			// Clean up
