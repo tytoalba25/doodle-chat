@@ -306,13 +306,12 @@ public class Client {
 					}
 					break;
 				} else {
-					System.out.println("Multicasting message");
 					multicast(sock, (displayName + ": " + message));
 				}
 			}
-			
-			sock.close();
+
 			receiver.interrupt();
+			sock.close();
 			
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block
@@ -320,11 +319,6 @@ public class Client {
 		}
 		
 		System.out.println("Quiting...");
-		
-	}
-	
-	private synchronized static void display(String message) {
-		System.out.println(message);
 	}
 	
 	private static synchronized void multicast(DatagramSocket sock, String message) {
@@ -332,12 +326,9 @@ public class Client {
 		byte[] buffer = message.getBytes();
 		DatagramPacket packet;
 		
-		System.out.println("Sending message to " + group.size() + " peers!");
-		
 		for(int i = 0; i < group.size(); i++) {
 			packet = new DatagramPacket(buffer, buffer.length, group.get(i), 5556);
 			try {
-				display("Sending to: " + group.get(i).toString());
 				sock.send(packet);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block

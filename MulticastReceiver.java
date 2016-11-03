@@ -58,7 +58,7 @@ public class MulticastReceiver implements Runnable {
 		switch(parts[0]) {
 		
 		case "update":
-			display("New members: " + parts[1]);
+			//display("New members: " + parts[1]);
 			updateMembers(parts[1]);
 			break;
 		default:
