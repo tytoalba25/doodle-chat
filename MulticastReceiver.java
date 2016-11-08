@@ -1,6 +1,5 @@
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.SocketException;
@@ -13,12 +12,14 @@ public class MulticastReceiver implements Runnable {
 	InetAddress tracker;
 	ArrayList<InetAddress> group;
 	
-	public MulticastReceiver(InetAddress group, String IP) {
+	// New constructor for use with multicast
+	// TODO: Fix this
+	public MulticastReceiver(String trackerIP, InetAddress group) {
 		try {
 			sock = new MulticastSocket(5556);
 			sock.joinGroup(group);
 			
-			tracker = InetAddress.getByName(IP);
+			tracker = InetAddress.getByName(trackerIP);
 
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block
@@ -30,12 +31,17 @@ public class MulticastReceiver implements Runnable {
 	}
 	
 	
-	public MulticastReceiver(String IP, DatagramSocket sock, ArrayList<InetAddress> group) {
-				this.sock = (MulticastSocket) sock;
-				this.group = group;
+	// Old constructor for non-true multicasting
+	public MulticastReceiver(String IP, ArrayList<InetAddress> group) {
+				
 				try {
+					sock = new MulticastSocket(5556);
+					this.group = group;
 					tracker = InetAddress.getByName(IP);
 				} catch (UnknownHostException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
@@ -51,12 +57,8 @@ public class MulticastReceiver implements Runnable {
 				sock.receive(packet);
 				
 				String message = new String(packet.getData());
-				
-				display(message);
-				
-				
-				
 				if(packet.getAddress().equals(tracker)) {
+					// Tracker messages have particular behavior to follow and don't need to be displayed
 					trackerMessage(message);
 				} else if(!packet.getAddress().equals(InetAddress.getLocalHost())) {
 					display(message);
@@ -81,7 +83,7 @@ public class MulticastReceiver implements Runnable {
 		switch(parts[0]) {
 		
 		case "update":
-			//display("New members: " + parts[1]);
+			display("DEBUG: Members: " + parts[1]);
 			updateMembers(parts[1]);
 			break;
 		default:
@@ -90,17 +92,18 @@ public class MulticastReceiver implements Runnable {
 		}
 	}
 	
+	// Re-populates the list of peers
 	private synchronized void updateMembers(String members) {
-				try {
-					String[] peers = members.split(",");
-					group.clear();
-					for(String peer : peers) {
-						group.add(InetAddress.getByName(peer));
-					}
-					
-				} catch (UnknownHostException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+		try {
+			String[] peers = members.split(",");
+			group.clear();
+			for(String peer : peers) {
+				group.add(InetAddress.getByName(peer));
 			}
+
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 }

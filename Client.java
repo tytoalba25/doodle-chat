@@ -7,7 +7,6 @@ import java.net.ConnectException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.MulticastSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
@@ -286,27 +285,29 @@ public class Client {
 		return false;
 	}
 	
+	// Listens for user input and sends messages
 	private static void chatLoop(Scanner in) {
 		try {
 
 			groupMask = InetAddress.getByName("225.4.5.6");
 			
 			
-			MulticastSocket sock = new MulticastSocket();
-			Thread receiver = new Thread(new MulticastReceiver(groupMask, IP));
+			DatagramSocket sock = new DatagramSocket();
+			// Use IP, groupMask for multicast
+			Thread receiver = new Thread(new MulticastReceiver(IP, group));
 			receiver.start();
 			
 			Boolean chatting = true;
 			String message = "";
 			
-			multicast(sock, displayName + " has joined the chat.");
+			P2PUDP(sock, displayName + " has joined the chat.");
 			
 			while(chatting) {
 				message = in.nextLine();
 				if(message.equals("/quit")) {
 					try {
 						
-						multicast(sock, displayName + " has left the chat.");
+						P2PUDP(sock, displayName + " has left the chat.");
 						
 						openSocket();
 						sockOut.write("leave " + ID + " " + channelName + "\n\n");
@@ -318,7 +319,7 @@ public class Client {
 					}
 					break;
 				} else {
-					multicast(sock, (displayName + ": " + message));
+					P2PUDP(sock, (displayName + ": " + message));
 				}
 			}
 
@@ -336,8 +337,9 @@ public class Client {
 		System.out.println("Quiting...");
 	}
 	
-	@SuppressWarnings("unused")
-	private static synchronized void multicast(DatagramSocket sock, String message) {
+	//@SuppressWarnings("unused")
+	// Sends out a UDP message to each peer one at a time
+	private static synchronized void P2PUDP(DatagramSocket sock, String message) {
 		//System.out.println(message);
 		byte[] buffer = message.getBytes();
 		DatagramPacket packet;
@@ -353,7 +355,10 @@ public class Client {
 		}
 	}
 	
-	private static synchronized void trueMulticast(MulticastSocket sock, String message) {
+	@SuppressWarnings("unused")
+	// TODO: Fix this
+	// Sends a multicast message to group.
+	private static synchronized void multicast(DatagramSocket sock, String message) {
 		byte[] buffer = message.getBytes();
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length, groupMask, 5556);
 		try {
