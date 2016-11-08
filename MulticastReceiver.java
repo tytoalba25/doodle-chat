@@ -11,6 +11,7 @@ public class MulticastReceiver implements Runnable {
 	MulticastSocket sock = null;
 	InetAddress tracker;
 	ArrayList<InetAddress> group;
+	Boolean MC = false;
 	
 	// New constructor for use with multicast
 	// TODO: Fix this
@@ -21,6 +22,9 @@ public class MulticastReceiver implements Runnable {
 			
 			tracker = InetAddress.getByName(trackerIP);
 
+			// TODO: Remove. For test toggling only
+			MC = false;
+			
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -94,6 +98,10 @@ public class MulticastReceiver implements Runnable {
 	
 	// Re-populates the list of peers
 	private synchronized void updateMembers(String members) {
+		// TODO: Remove. For test toggling only
+		if(MC)
+			return;
+		
 		try {
 			String[] peers = members.split(",");
 			group.clear();

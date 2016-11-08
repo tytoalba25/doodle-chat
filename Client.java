@@ -287,27 +287,46 @@ public class Client {
 	
 	// Listens for user input and sends messages
 	private static void chatLoop(Scanner in) {
+		
+		// Toggles behavior between multicast and P2PUDP
+		boolean MC = false;
+		
 		try {
 
 			groupMask = InetAddress.getByName("225.4.5.6");
 			
 			
 			DatagramSocket sock = new DatagramSocket();
-			// Use IP, groupMask for multicast
-			Thread receiver = new Thread(new MulticastReceiver(IP, group));
-			receiver.start();
+			Thread receiver;
+			// TODO: Remove if/else once multicast is functional
+			if(MC) {
+				receiver = new Thread(new MulticastReceiver(IP, groupMask));
+				receiver.start();				
+			} else {
+				receiver = new Thread(new MulticastReceiver(IP, group));
+				receiver.start();
+			}
 			
 			Boolean chatting = true;
 			String message = "";
 			
-			P2PUDP(sock, displayName + " has joined the chat.");
+			// TODO: Remove if/else once multicast is functional
+			if(MC) {
+				multicast(sock, displayName + " has left the chat."); 
+			} else  {
+				P2PUDP(sock, displayName + " has joined the chat."); 
+			}
 			
 			while(chatting) {
 				message = in.nextLine();
 				if(message.equals("/quit")) {
 					try {
-						
-						P2PUDP(sock, displayName + " has left the chat.");
+						// TODO: Remove if/else once multicast is functional
+						if(MC) {
+							multicast(sock, displayName + " has left the chat."); 
+						} else  {
+							P2PUDP(sock, displayName + " has left the chat."); 
+						}
 						
 						openSocket();
 						sockOut.write("leave " + ID + " " + channelName + "\n\n");
@@ -318,8 +337,13 @@ public class Client {
 						e.printStackTrace();
 					}
 					break;
-				} else {
-					P2PUDP(sock, (displayName + ": " + message));
+				} else {	
+					// TODO: Remove if/else once multicast is functional
+					if(MC) {
+						multicast(sock, (displayName + ": " + message));
+					} else  {
+						P2PUDP(sock, (displayName + ": " + message));
+					}
 				}
 			}
 
@@ -337,7 +361,6 @@ public class Client {
 		System.out.println("Quiting...");
 	}
 	
-	//@SuppressWarnings("unused")
 	// Sends out a UDP message to each peer one at a time
 	private static synchronized void P2PUDP(DatagramSocket sock, String message) {
 		//System.out.println(message);
@@ -355,7 +378,6 @@ public class Client {
 		}
 	}
 	
-	@SuppressWarnings("unused")
 	// TODO: Fix this
 	// Sends a multicast message to group.
 	private static synchronized void multicast(DatagramSocket sock, String message) {
