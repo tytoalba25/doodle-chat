@@ -1,18 +1,23 @@
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+
 public class MulticastReceiver implements Runnable {
 
 	MulticastSocket sock = null;
 	InetAddress tracker;
+	ArrayList<InetAddress> group;
 	
 	public MulticastReceiver(InetAddress group, String IP) {
 		try {
 			sock = new MulticastSocket(5556);
 			sock.joinGroup(group);
+			
 			tracker = InetAddress.getByName(IP);
 
 		} catch (UnknownHostException e) {
@@ -22,6 +27,18 @@ public class MulticastReceiver implements Runnable {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
+	}
+	
+	
+	public MulticastReceiver(String IP, DatagramSocket sock, ArrayList<InetAddress> group) {
+				this.sock = (MulticastSocket) sock;
+				this.group = group;
+				try {
+					tracker = InetAddress.getByName(IP);
+				} catch (UnknownHostException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 	}
 	
 	public void run() {		
@@ -34,11 +51,16 @@ public class MulticastReceiver implements Runnable {
 				sock.receive(packet);
 				
 				String message = new String(packet.getData());
+				
+				display(message);
+				
+				
+				/*
 				if(packet.getAddress().equals(tracker)) {
 					trackerMessage(message);
 				} else if(!packet.getAddress().equals(InetAddress.getLocalHost())) {
 					display(message);
-				} 
+				} */
 			}
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block
@@ -50,6 +72,7 @@ public class MulticastReceiver implements Runnable {
 	}
 	
 	private synchronized void display(String message) {
+		System.out.println("Recieved following message:");
 		System.out.println(message);
 	}
 	
@@ -60,11 +83,25 @@ public class MulticastReceiver implements Runnable {
 		
 		case "update":
 			//display("New members: " + parts[1]);
-			//updateMembers(parts[1]);
+			updateMembers(parts[1]);
 			break;
 		default:
 			display("Unknown tracker message: \"" + message + "\"");
 			break;
 		}
 	}
+	
+	private synchronized void updateMembers(String members) {
+				try {
+					String[] peers = members.split(",");
+					group.clear();
+					for(String peer : peers) {
+						group.add(InetAddress.getByName(peer));
+					}
+					
+				} catch (UnknownHostException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
 }

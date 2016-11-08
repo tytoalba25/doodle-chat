@@ -289,23 +289,24 @@ public class Client {
 	private static void chatLoop(Scanner in) {
 		try {
 
-			groupMask = InetAddress.getByName("224.1.3.64");
+			groupMask = InetAddress.getByName("225.4.5.6");
 			
-			DatagramSocket sock = new DatagramSocket();
+			
+			MulticastSocket sock = new MulticastSocket();
 			Thread receiver = new Thread(new MulticastReceiver(groupMask, IP));
 			receiver.start();
 			
 			Boolean chatting = true;
 			String message = "";
 			
-			trueMulticast(sock, displayName + " has joined the chat.");
+			multicast(sock, displayName + " has joined the chat.");
 			
 			while(chatting) {
 				message = in.nextLine();
 				if(message.equals("/quit")) {
 					try {
 						
-						trueMulticast(sock, displayName + " has left the chat.");
+						multicast(sock, displayName + " has left the chat.");
 						
 						openSocket();
 						sockOut.write("leave " + ID + " " + channelName + "\n\n");
@@ -317,7 +318,7 @@ public class Client {
 					}
 					break;
 				} else {
-					trueMulticast(sock, (displayName + ": " + message));
+					multicast(sock, (displayName + ": " + message));
 				}
 			}
 
@@ -352,11 +353,12 @@ public class Client {
 		}
 	}
 	
-	private static synchronized void trueMulticast(DatagramSocket sock, String message) {
+	private static synchronized void trueMulticast(MulticastSocket sock, String message) {
 		byte[] buffer = message.getBytes();
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length, groupMask, 5556);
 		try {
 			sock.send(packet);
+			System.out.println("Sent packet with message: " + message);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
