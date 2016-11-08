@@ -55,12 +55,12 @@ public class MulticastReceiver implements Runnable {
 				display(message);
 				
 				
-				/*
+				
 				if(packet.getAddress().equals(tracker)) {
 					trackerMessage(message);
 				} else if(!packet.getAddress().equals(InetAddress.getLocalHost())) {
 					display(message);
-				} */
+				} 
 			}
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block
@@ -72,7 +72,6 @@ public class MulticastReceiver implements Runnable {
 	}
 	
 	private synchronized void display(String message) {
-		System.out.println("Recieved following message:");
 		System.out.println(message);
 	}
 	
