@@ -7,6 +7,7 @@ import java.net.ConnectException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.MulticastSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
@@ -24,6 +25,7 @@ public class Client {
 	static int ID = -1;
 	static ArrayList<InetAddress> group = new ArrayList<InetAddress>();
 	static String channelName = "";
+	static InetAddress groupMask;
 	
 	public static void main(String args[]) {
 		Scanner in = new Scanner(System.in);
@@ -285,24 +287,25 @@ public class Client {
 	}
 	
 	private static void chatLoop(Scanner in) {
-		
-		DatagramSocket sock;
 		try {
-			sock = new DatagramSocket(5556);
-			Thread receiver = new Thread(new MulticastReceiver(IP, sock, group));
+
+			groupMask = InetAddress.getByName("224.1.3.64");
+			
+			DatagramSocket sock = new DatagramSocket();
+			Thread receiver = new Thread(new MulticastReceiver(groupMask, IP));
 			receiver.start();
 			
 			Boolean chatting = true;
 			String message = "";
 			
-			multicast(sock, displayName + " has joined the chat.");
+			trueMulticast(sock, displayName + " has joined the chat.");
 			
 			while(chatting) {
 				message = in.nextLine();
 				if(message.equals("/quit")) {
 					try {
 						
-						multicast(sock, displayName + " has left the chat.");
+						trueMulticast(sock, displayName + " has left the chat.");
 						
 						openSocket();
 						sockOut.write("leave " + ID + " " + channelName + "\n\n");
@@ -314,7 +317,7 @@ public class Client {
 					}
 					break;
 				} else {
-					multicast(sock, (displayName + ": " + message));
+					trueMulticast(sock, (displayName + ": " + message));
 				}
 			}
 
@@ -324,11 +327,15 @@ public class Client {
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
 		}
 		
 		System.out.println("Quiting...");
 	}
 	
+	@SuppressWarnings("unused")
 	private static synchronized void multicast(DatagramSocket sock, String message) {
 		//System.out.println(message);
 		byte[] buffer = message.getBytes();
@@ -342,6 +349,17 @@ public class Client {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+		}
+	}
+	
+	private static synchronized void trueMulticast(DatagramSocket sock, String message) {
+		byte[] buffer = message.getBytes();
+		DatagramPacket packet = new DatagramPacket(buffer, buffer.length, groupMask, 5556);
+		try {
+			sock.send(packet);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 	
