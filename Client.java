@@ -7,6 +7,7 @@ import java.net.ConnectException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.MulticastSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
@@ -22,12 +23,14 @@ public class Client {
 	static String IP = "";
 	static int port = -1;
 	static int ID = -1;
-	static ArrayList<InetAddress> group = new ArrayList<InetAddress>();
+	static ArrayList<Tuple> group = new ArrayList<Tuple>();
 	static String channelName = "";
 	static InetAddress groupMask;
+	static MulticastSocket MSock;
 	
 	public static void main(String args[]) {
 		Scanner in = new Scanner(System.in);
+		MulticastSocket ms = null;
 		init(in, args);
 		register();
 		while (!joined) {
@@ -41,7 +44,7 @@ public class Client {
 				break;
 			case "create":
 				if(parts.length == 2) {
-					createChannel(parts[1]);					
+					ms = createChannel(parts[1]);					
 				} else {
 					System.out.println("Format: create $channelName");
 				}
@@ -49,7 +52,7 @@ public class Client {
 			case "join":
 				if(parts.length == 2) {
 					channelName = parts[1];
-					joinChannel(parts[1]);					
+					ms = joinChannel(parts[1]);					
 				} else {
 					System.out.println("Format: join $channelName");
 				}
@@ -66,7 +69,10 @@ public class Client {
 		//TODO: Talk loop
 		System.out.println("This is where chatting would take place");
 		
-		chatLoop(in);
+		
+		
+		
+		chatLoop(in, ms);
 		
 
 		// Exit normally
@@ -139,7 +145,9 @@ public class Client {
 	}
 	
 	//TODO: Creates and joins a channel
-	private static void createChannel(String channel) {
+	private static MulticastSocket createChannel(String channel) {
+		MulticastSocket ms = null;
+		
 		if(!channelExists(channel)) {
 			openSocket();
 			try {
@@ -148,7 +156,7 @@ public class Client {
 
 				String reply = sockIn.readLine();
 				if(reply.equals("success")) {
-					joinCreatedChannel(channel);
+					ms = joinCreatedChannel(channel);
 				} else {
 					System.out.println(reply);
 				}
@@ -160,13 +168,17 @@ public class Client {
 			}
 			cleanUp();
 		}
+		
+		return ms;
 	}
 	
 	
-	private static void joinCreatedChannel(String channel) {
+	private static MulticastSocket joinCreatedChannel(String channel) {
 		openSocket();
+		
+		MulticastSocket ms = createMS();
 		try {
-			sockOut.write("join " + ID  + " " + channel + "\n\n");
+			sockOut.write("join " + ID  + " " + channel + " " + ms.getLocalPort() + "\n\n");
 			sockOut.flush();
 
 		} catch (IOException e) {
@@ -180,15 +192,18 @@ public class Client {
 
 		joined(channel);
 		cleanUp();
+		return ms;
 	}
 	
 	
 	//TODO: Connects to pre-existing channel
-	private static void joinChannel(String channel) {
+	private static MulticastSocket joinChannel(String channel) {
+		MulticastSocket ms = createMS();
+		
 		if(channelExists(channel)) {
 			openSocket();
 			try {
-				sockOut.write("join " + ID  + " " + channel + "\n\n");
+				sockOut.write("join " + ID  + " " + channel + " " + ms.getLocalPort() + "\n\n");
 				sockOut.flush();
 				
 				String s = sockIn.readLine();
@@ -207,17 +222,31 @@ public class Client {
 			joined(channel);
 			cleanUp();
 		}
+		
+		return ms;
+	}
+
+	private static MulticastSocket createMS() {
+		try {
+			return new MulticastSocket();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		return null;
 	}
 	
-	private static void initGroup(String incoming) {
+	static void initGroup(String incoming) {
 		String[] members = incoming.split(",");
 		
+		System.out.println(incoming);
+		
 		for(String member : members) {
-			// Replacing the extra colons that were at the end of the IP
-			String IPs = member.replaceAll(":.*", ""); // TODO: Does the server still send port numbers?
-			System.out.println(IPs);
 			try {
-				group.add(InetAddress.getByName(IPs));
+				group.add(new Tuple (InetAddress.getByName(member.split(":")[0]), Integer.parseInt(member.split(":")[1]))); 
+			} catch (NumberFormatException n) {
+				n.printStackTrace();
 			} catch (UnknownHostException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -286,7 +315,7 @@ public class Client {
 	}
 	
 	// Listens for user input and sends messages
-	private static void chatLoop(Scanner in) {
+	private static void chatLoop(Scanner in, MulticastSocket listen) {
 		
 		// Toggles behavior between multicast and P2PUDP
 		boolean MC = false;
@@ -295,17 +324,18 @@ public class Client {
 
 			groupMask = InetAddress.getByName("225.4.5.6");
 			
-			
-			DatagramSocket sock = new DatagramSocket();
 			Thread receiver;
 			// TODO: Remove if/else once multicast is functional
 			if(MC) {
 				receiver = new Thread(new MulticastReceiver(IP, groupMask));
 				receiver.start();				
 			} else {
-				receiver = new Thread(new MulticastReceiver(IP, group));
+				receiver = new Thread(new MulticastReceiver(IP, group, listen));
 				receiver.start();
 			}
+			
+			
+			MulticastSocket sock = new MulticastSocket();
 			
 			Boolean chatting = true;
 			String message = "";
@@ -350,9 +380,6 @@ public class Client {
 			receiver.interrupt();
 			sock.close();
 			
-		} catch (SocketException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		} catch (IOException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
@@ -368,7 +395,7 @@ public class Client {
 		DatagramPacket packet;
 		
 		for(int i = 0; i < group.size(); i++) {
-			packet = new DatagramPacket(buffer, buffer.length, group.get(i), 5556);
+			packet = new DatagramPacket(buffer, buffer.length, group.get(i).getAddr(), group.get(i).getPort());
 			try {
 				sock.send(packet);
 			} catch (IOException e) {
@@ -380,7 +407,7 @@ public class Client {
 	
 	// TODO: Fix this
 	// Sends a multicast message to group.
-	private static synchronized void multicast(DatagramSocket sock, String message) {
+	private static synchronized void multicast(MulticastSocket sock, String message) {
 		byte[] buffer = message.getBytes();
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length, groupMask, 5556);
 		try {

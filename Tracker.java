@@ -99,10 +99,10 @@ public class Tracker implements Runnable {
 	// Join a channel already in the directory
 	// If the channel doesn't exist, return 0
 	// Otherwise add the ip to the channel and return 1
-	public int joinChannel(String n, String m, int id) {
+	public int joinChannel(String n, String p, String m, int id) {
 		Channel c = channelExists(n);
 		if (c != null) {
-			c.addMember(new Member(m, id));
+			c.addMember(new Member(m, p, id));
 			updateMembers(n);
 			return 1;
 		}
@@ -153,7 +153,7 @@ public class Tracker implements Runnable {
 			return "";
 		}
 		for (int i=0; i<c.members.size(); i++) {
-			val += c.members.get(i).toString().split(":")[0];
+			val += c.members.get(i).toString();//.split(":")[0];
 			if (i < c.members.size()-1) {
 				val += ",";
 			}
@@ -172,6 +172,8 @@ public class Tracker implements Runnable {
 		message += getMembers(n);
 		message += "\n\n";
 
+		System.out.println(message);
+		
 		DatagramSocket sock;
 		byte[] buffer = message.getBytes();
 		
@@ -182,11 +184,13 @@ public class Tracker implements Runnable {
 		}
 
 		InetAddress ip;
+		int port;
 		DatagramPacket packet;
 		for (int i=0; i<c.members.size(); i++) {
 			try {
-			ip = InetAddress.getByName(c.members.get(i).toString().split(":")[0]);
-			packet = new DatagramPacket(buffer, buffer.length, ip, 5556);
+			ip = InetAddress.getByName(c.members.get(i).getIP());
+			port = Integer.parseInt(c.members.get(i).getPort());
+			packet = new DatagramPacket(buffer, buffer.length, ip, port);
 				sock.send(packet);
 			} catch (IOException e) {
 				return 0;
@@ -249,7 +253,8 @@ public class Tracker implements Runnable {
 			// Process a join request
 			if (input.startsWith("join")) {
 				System.out.println("\tProcessing join request");
-				if (joinChannel(parts[2], csocket.getRemoteSocketAddress().toString().substring(1), Integer.parseInt(parts[1])) != 1) {
+							// Channel Name, IP, ID
+				if (joinChannel(parts[2], parts[3], csocket.getRemoteSocketAddress().toString().substring(1).split(":")[0], Integer.parseInt(parts[1])) != 1) {	
 					output = "failure";
 				} else {
 					output = "success ";
@@ -280,6 +285,7 @@ public class Tracker implements Runnable {
 			
 			} catch (Exception e) {
 				System.out.println(e);
+				e.printStackTrace();
 				output = "invalid";
 			}
 
@@ -294,6 +300,7 @@ public class Tracker implements Runnable {
 
 		} catch (IOException e) {
 			System.out.println(e);
+			e.printStackTrace();
 		}
 	}
 	
@@ -329,14 +336,16 @@ public class Tracker implements Runnable {
 	}
 	
 	// Member class
-	// Contains a pairing of the user's ip address and unique id
+	// Contains a pairing of the user's ip address, UDP port, and unique id
 	public class Member {
 		private String address;
 		private int id;
+		private String port;
 		
-		public Member(String a, int i) {
+		public Member(String a, String p, int i) {
 			address = a;
 			id = i;
+			port = p;
 		}
 		
 		public int getID() {
@@ -344,7 +353,15 @@ public class Tracker implements Runnable {
 		}
 
 		public String toString() {
+			return address + ":" + port;
+		}
+		
+		public String getIP() {
 			return address;
+		}
+		
+		public String getPort() {
+			return port;
 		}
 	}
 	

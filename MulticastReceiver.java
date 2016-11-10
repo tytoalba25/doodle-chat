@@ -10,7 +10,7 @@ public class MulticastReceiver implements Runnable {
 
 	MulticastSocket sock = null;
 	InetAddress tracker;
-	ArrayList<InetAddress> group;
+	ArrayList<Tuple> group;
 	Boolean MC = false;
 	
 	// New constructor for use with multicast
@@ -36,16 +36,12 @@ public class MulticastReceiver implements Runnable {
 	
 	
 	// Old constructor for non-true multicasting
-	public MulticastReceiver(String IP, ArrayList<InetAddress> group) {
-				
+	public MulticastReceiver(String IP, ArrayList<Tuple> group, MulticastSocket sock) {
+				this.sock = sock;
 				try {
-					sock = new MulticastSocket(5556);
 					this.group = group;
 					tracker = InetAddress.getByName(IP);
 				} catch (UnknownHostException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
@@ -61,7 +57,7 @@ public class MulticastReceiver implements Runnable {
 				sock.receive(packet);
 				
 				String message = new String(packet.getData());
-				if(packet.getAddress().equals(tracker)) {
+				if(packet.getSocketAddress().toString().split(":")[1].equals("5556") ) {
 					// Tracker messages have particular behavior to follow and don't need to be displayed
 					trackerMessage(message);
 				} else if(!packet.getAddress().equals(InetAddress.getLocalHost())) {
@@ -106,9 +102,12 @@ public class MulticastReceiver implements Runnable {
 			String[] peers = members.split(",");
 			group.clear();
 			for(String peer : peers) {
-				group.add(InetAddress.getByName(peer));
+				group.add(new Tuple(InetAddress.getByName(peer.split(":")[0]), Integer.parseInt(peer.split(":")[1].trim())));
 			}
 
+		} catch (NumberFormatException n) {
+			n.printStackTrace();
+			
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
