@@ -185,6 +185,7 @@ public class Tracker implements Runnable {
 
 		InetAddress ip;
 		int port;
+		int id;
 		DatagramPacket packet;
 		for (int i=0; i<c.members.size(); i++) {
 			try {
@@ -353,7 +354,7 @@ public class Tracker implements Runnable {
 		}
 
 		public String toString() {
-			return address + ":" + port;
+			return address + ":" + port + "/" + id;
 		}
 		
 		public String getIP() {

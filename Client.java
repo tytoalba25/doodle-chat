@@ -241,16 +241,23 @@ public class Client {
 		String[] members = incoming.split(",");
 		
 		System.out.println(incoming);
-		
-		for(String member : members) {
-			try {
-				group.add(new Tuple (InetAddress.getByName(member.split(":")[0]), Integer.parseInt(member.split(":")[1]))); 
-			} catch (NumberFormatException n) {
-				n.printStackTrace();
-			} catch (UnknownHostException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+		try {
+			String[] parts;
+			String[] rightParts;
+			for (String peer : members) {
+				parts = peer.split(":");
+				rightParts = parts[1].split("/");
+				group.add(new Tuple(
+						InetAddress.getByName(parts[0]), 
+						Integer.parseInt(rightParts[0]),
+						Integer.parseInt(rightParts[1].trim())
+				));
 			}
+		} catch (NumberFormatException e) {
+			e.printStackTrace();
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 	

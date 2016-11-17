@@ -101,8 +101,16 @@ public class MulticastReceiver implements Runnable {
 		try {
 			String[] peers = members.split(",");
 			group.clear();
+			String[] parts;
+			String[] rightParts;
 			for(String peer : peers) {
-				group.add(new Tuple(InetAddress.getByName(peer.split(":")[0]), Integer.parseInt(peer.split(":")[1].trim())));
+				parts = peer.split(":");
+				rightParts = parts[1].split("/");
+				group.add(new Tuple(
+						InetAddress.getByName(parts[0]), 
+						Integer.parseInt(rightParts[0]), 
+						Integer.parseInt(rightParts[1].trim())
+				));
 			}
 
 		} catch (NumberFormatException n) {
