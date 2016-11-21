@@ -4,14 +4,14 @@ import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 
 public class MulticastReceiver implements Runnable {
 
 	MulticastSocket sock = null;
 	InetAddress tracker;
-	ArrayList<Tuple> group;
+	PeerGroup group;
 	Boolean MC = false;
+	int ID;
 	
 	// New constructor for use with multicast
 	// TODO: Fix this
@@ -26,29 +26,35 @@ public class MulticastReceiver implements Runnable {
 			MC = false;
 			
 		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
+			
 			e.printStackTrace();
 		} catch (IOException e1) {
-			// TODO Auto-generated catch block
+			
 			e1.printStackTrace();
 		}
+		
 	}
 	
 	
 	// Old constructor for non-true multicasting
-	public MulticastReceiver(String IP, ArrayList<Tuple> group, MulticastSocket sock) {
-				this.sock = sock;
-				try {
-					this.group = group;
-					tracker = InetAddress.getByName(IP);
-				} catch (UnknownHostException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+	public MulticastReceiver(String IP, PeerGroup group, MulticastSocket sock, int myID) {
+		this.sock = sock;
+		try {
+			this.group = group;
+			tracker = InetAddress.getByName(IP);
+		} catch (UnknownHostException e) {
+			
+			e.printStackTrace();
+		}
+		
+		ID = myID;
+		
+		group.startTimers();
 	}
 	
 	public void run() {		
 		try {
+			
 			byte[] buffer;
 			while(true) {
 				buffer = new byte[65500];
@@ -56,19 +62,13 @@ public class MulticastReceiver implements Runnable {
 				DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 				sock.receive(packet);
 				
-				String message = new String(packet.getData());
-				if(packet.getSocketAddress().toString().split(":")[1].equals("5556") ) {
-					// Tracker messages have particular behavior to follow and don't need to be displayed
-					trackerMessage(message);
-				} else if(!packet.getAddress().equals(InetAddress.getLocalHost())) {
-					display(message);
-				} 
+				recieved(packet);
 			}
 		} catch (SocketException e) {
-			// TODO Auto-generated catch block
+			
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
+			
 			e.printStackTrace();
 		}		
 	}
@@ -86,6 +86,10 @@ public class MulticastReceiver implements Runnable {
 			display("DEBUG: Members: " + parts[1]);
 			updateMembers(parts[1]);
 			break;
+		case "keep-alive":
+			System.out.println(parts[1] + " keep-alive");
+			// Reset timer
+			break;
 		default:
 			display("Unknown tracker message: \"" + message + "\"");
 			break;
@@ -97,28 +101,27 @@ public class MulticastReceiver implements Runnable {
 		// TODO: Remove. For test toggling only
 		if(MC)
 			return;
+		group.addAll(members);
+	}
+	
+	private void recieved(DatagramPacket packet) throws UnknownHostException {
+		String data = new String(packet.getData());
+		String[] parts = data.split("~");
+		int sender = Integer.parseInt(parts[0]);
 		
-		try {
-			String[] peers = members.split(",");
-			group.clear();
-			String[] parts;
-			String[] rightParts;
-			for(String peer : peers) {
-				parts = peer.split(":");
-				rightParts = parts[1].split("/");
-				group.add(new Tuple(
-						InetAddress.getByName(parts[0]), 
-						Integer.parseInt(rightParts[0]), 
-						Integer.parseInt(rightParts[1].trim())
-				));
-			}
-
-		} catch (NumberFormatException n) {
-			n.printStackTrace();
-			
-		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		
+		
+		if(sender == 0) {
+			// Tracker messages have particular behavior to follow and don't need to be displayed
+			trackerMessage(parts[1]);
+		} else {
+			group.getPeerByID(sender).restartTimer();
+			display(parts[1]);
 		}
 	}
 }
+
+
+
+
+

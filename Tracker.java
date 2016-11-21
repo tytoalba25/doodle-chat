@@ -1,6 +1,5 @@
 import java.util.ArrayList;
 import java.io.IOException;
-import java.net.UnknownHostException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.InetAddress;
@@ -168,7 +167,7 @@ public class Tracker implements Runnable {
 		if (c == null) {
 			return 0;
 		}
-		String message = "update ";
+		String message = "0~update ";
 		message += getMembers(n);
 		message += "\n\n";
 
@@ -276,12 +275,12 @@ public class Tracker implements Runnable {
 			
 			// Process a request-ping request NOT IMPLEMENTED
 			if (input.startsWith("request-ping")) {
-				output = "failure";
+				output = "Ping requested for peer #" + parts[1];
 			}
 
 			// Process a ping request NOT IMPLEMENTED
 			if (input.startsWith("ping")) {
-				output = "failure";
+				output = "Ping Failure";
 			}
 			
 			} catch (Exception e) {
