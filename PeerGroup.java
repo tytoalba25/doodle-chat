@@ -4,43 +4,63 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 public class PeerGroup implements Iterable<Entry<Integer, Peer>>{
-	private  Map<Integer, Peer> map;;
+	
+	// Map of peers
+	private  Map<Integer, Peer> map;
+	
+	// Tracker info
 	private String trackIP;
 	private int trackPort;
 	
-	public PeerGroup(String trackIP, int trackPort) {
+	// Timer stuff
+	private ScheduledThreadPoolExecutor pool;
+	private final int MAX_PEERS = 50;
+	
+	// Channel info
+	private String channelName;
+	
+	
+	
+	public PeerGroup(String trackIP, int trackPort, String cn) {
 		map = new Hashtable<Integer, Peer>();
 		this.trackIP = trackIP;
 		this.trackPort = trackPort;
+		pool = new ScheduledThreadPoolExecutor(MAX_PEERS);
+		channelName = cn;
 	}
 	
 	public void addPeer(Peer peer) {
 		map.put(peer.getID(), peer);
+		peer.startTimer();
 	}
 	
 	public void addAll(String members) {
-		
-		// TODO: Don't clear members that are already accounted for. This allows for accurate timers.
-		
 		if(members.length() > 0) {
-			clear();
 			try {
 				String[] peers = members.split(",");
 				String[] parts;
 				String[] rightParts;
+				int peerID;
+				Peer newPeer;
 				for(String peer : peers) {
 					parts = peer.split(":");
 					rightParts = parts[1].split("/");
-					addPeer(new Peer(
-							Integer.parseInt(rightParts[1].trim()),
-							InetAddress.getByName(parts[0]), 
-							Integer.parseInt(rightParts[0]),
-							trackIP,
-							trackPort
-							)
-					);
+					peerID = Integer.parseInt(rightParts[1].trim());
+					if( ! map.containsKey(peerID) ) {
+						newPeer = new Peer(
+								peerID,
+								InetAddress.getByName(parts[0]), 
+								Integer.parseInt(rightParts[0]),
+								trackIP,
+								trackPort,
+								pool,
+								channelName
+						);
+						addPeer(newPeer);
+					}
 				}
 
 			} catch (NumberFormatException n) {
@@ -55,10 +75,6 @@ public class PeerGroup implements Iterable<Entry<Integer, Peer>>{
 	
 	public Peer getPeerByID (int ID) {
 		return map.get(ID);
-	}
-	
-	public Boolean pingPeer() {
-		return true;
 	}
 	
 	public void startTimers() {
@@ -87,4 +103,8 @@ public class PeerGroup implements Iterable<Entry<Integer, Peer>>{
 	public Iterator<Entry<Integer, Peer>> iterator() {
 		return map.entrySet().iterator();
 	}	
+	
+	public String getName() {
+		return channelName;
+	}
 }

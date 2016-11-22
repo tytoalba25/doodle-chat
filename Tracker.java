@@ -1,7 +1,15 @@
 import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.Map;
+import java.util.TimerTask;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.net.InetAddress;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -14,6 +22,9 @@ public class Tracker implements Runnable {
 	
 	// Our static shared directory of channels
 	static ArrayList<Channel> channels;
+	static Map<Integer, Future<?>> timers;
+	static ScheduledThreadPoolExecutor pool;
+	static final int MAX_TIMERS = 50;
 
 	static int id;
 	
@@ -43,6 +54,8 @@ public class Tracker implements Runnable {
 
 		// Make our directory
 		channels = new ArrayList<Channel>();
+		pool = new ScheduledThreadPoolExecutor(MAX_TIMERS);
+		timers = new Hashtable<Integer, Future<?>>();
 
 		// Set up our identifier
 		id = 1;
@@ -101,7 +114,7 @@ public class Tracker implements Runnable {
 	public int joinChannel(String n, String p, String m, int id) {
 		Channel c = channelExists(n);
 		if (c != null) {
-			c.addMember(new Member(m, p, id));
+			c.addMember(new Member(m, Integer.parseInt(p), id));
 			updateMembers(n);
 			return 1;
 		}
@@ -170,8 +183,6 @@ public class Tracker implements Runnable {
 		String message = "0~update ";
 		message += getMembers(n);
 		message += "\n\n";
-
-		System.out.println(message);
 		
 		DatagramSocket sock;
 		byte[] buffer = message.getBytes();
@@ -189,7 +200,7 @@ public class Tracker implements Runnable {
 		for (int i=0; i<c.members.size(); i++) {
 			try {
 			ip = InetAddress.getByName(c.members.get(i).getIP());
-			port = Integer.parseInt(c.members.get(i).getPort());
+			port = c.members.get(i).getPort();
 			packet = new DatagramPacket(buffer, buffer.length, ip, port);
 				sock.send(packet);
 			} catch (IOException e) {
@@ -200,6 +211,107 @@ public class Tracker implements Runnable {
 		sock.close();
 
 		System.out.println("\tUpdate sent to " + getMembers(n));
+		return 1;
+	}
+	
+	public int pingMember(String n, int memberID) {
+		System.out.println("PINGING MEMBER #" + memberID);
+		
+		Channel c = channelExists(n);
+		if (c == null) {
+			return 0;
+		}
+		
+		
+		String message = "0~ping \n\n";
+		
+		DatagramSocket sock;
+		byte[] buffer = message.getBytes();
+		
+		try {
+			sock = new DatagramSocket(5556);
+			Member member = c.getMemberByID(memberID);
+
+			InetAddress ip = InetAddress.getByName(member.getIP());
+			int port = member.getPort();
+			DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
+			
+			sock.send(packet);
+
+			sock.close();
+			
+			
+			
+			ScheduledFuture<?> timeout = pool.schedule(new TimerTask() {
+
+					@Override
+					public void run() {
+						synchronized (timers) {
+							leaveChannel(n, memberID);
+							timers.remove(memberID);
+							System.out.println("TIMEOUT: " + memberID);
+						}
+					}
+				
+				}, 2, TimeUnit.SECONDS
+			);
+			synchronized(timers) {
+				timers.put(memberID, timeout);				
+			}
+
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			return 0;
+		}
+		
+		return 1;
+	}
+	
+	public int processPing(int ID, String n) {		
+		System.out.println("KEEP-ALIVE MEMBER #" + ID);
+		Channel c = channelExists(n);
+		if (c == null) {
+			return 0;
+		}
+		try {
+			synchronized (timers) {
+				timers.get(ID).cancel(true);
+				timers.remove(ID);
+			}
+		} catch (NullPointerException e) {
+			e.printStackTrace();
+		}
+		String message = "0~keep-alive " + ID + "\n\n";
+
+		DatagramSocket sock;
+		byte[] buffer = message.getBytes();
+		
+		try {
+			sock = new DatagramSocket(5556);
+		} catch (IOException e) {
+			return 0;
+		}
+
+		InetAddress ip;
+		int port;
+		int id;
+		DatagramPacket packet;
+		for (int i=0; i<c.members.size(); i++) {
+			try {
+			ip = InetAddress.getByName(c.members.get(i).getIP());
+			port = c.members.get(i).getPort();
+			packet = new DatagramPacket(buffer, buffer.length, ip, port);
+				sock.send(packet);
+			} catch (IOException e) {
+				return 0;
+			}
+		}
+
+		sock.close();
+
+		System.out.println("\tKeep-Alive sent to " + getMembers(n));
 		return 1;
 	}
 		
@@ -275,12 +387,12 @@ public class Tracker implements Runnable {
 			
 			// Process a request-ping request NOT IMPLEMENTED
 			if (input.startsWith("request-ping")) {
-				output = "Ping requested for peer #" + parts[1];
+				pingMember(parts[2], Integer.parseInt(parts[1]));
 			}
 
 			// Process a ping request NOT IMPLEMENTED
 			if (input.startsWith("ping")) {
-				output = "Ping Failure";
+				processPing(Integer.parseInt(parts[1]), parts[2]);
 			}
 			
 			} catch (Exception e) {
@@ -332,7 +444,15 @@ public class Tracker implements Runnable {
 		// Return a string representing the channel
 		public String toString() {
 			return name;
-		}	
+		}
+		
+		public Member getMemberByID(int ID) {
+			for(Member member : members) {
+				if(member.getID() == ID)
+					return member;
+			}
+			return null;
+		}
 	}
 	
 	// Member class
@@ -340,9 +460,9 @@ public class Tracker implements Runnable {
 	public class Member {
 		private String address;
 		private int id;
-		private String port;
+		private int port;
 		
-		public Member(String a, String p, int i) {
+		public Member(String a, int p, int i) {
 			address = a;
 			id = i;
 			port = p;
@@ -360,7 +480,7 @@ public class Tracker implements Runnable {
 			return address;
 		}
 		
-		public String getPort() {
+		public int getPort() {
 			return port;
 		}
 	}

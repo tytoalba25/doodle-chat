@@ -1,7 +1,12 @@
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 
@@ -9,6 +14,7 @@ public class MulticastReceiver implements Runnable {
 
 	MulticastSocket sock = null;
 	InetAddress tracker;
+	int trackPort;
 	PeerGroup group;
 	Boolean MC = false;
 	int ID;
@@ -37,19 +43,18 @@ public class MulticastReceiver implements Runnable {
 	
 	
 	// Old constructor for non-true multicasting
-	public MulticastReceiver(String IP, PeerGroup group, MulticastSocket sock, int myID) {
+	public MulticastReceiver(String tIP, int tPort, PeerGroup group, MulticastSocket sock, int myID) {
 		this.sock = sock;
 		try {
 			this.group = group;
-			tracker = InetAddress.getByName(IP);
+			tracker = InetAddress.getByName(tIP);
+			trackPort = tPort;
 		} catch (UnknownHostException e) {
 			
 			e.printStackTrace();
 		}
 		
 		ID = myID;
-		
-		group.startTimers();
 	}
 	
 	public void run() {		
@@ -73,6 +78,23 @@ public class MulticastReceiver implements Runnable {
 		}		
 	}
 	
+	private void pingTracker() {
+		
+		//System.out.println("\t\t\tDEBUG: Ping not yet fully implemented");
+		Socket sock;
+		try {
+			sock = new Socket(tracker, trackPort);
+			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(sock.getOutputStream()));
+			out.write("ping " + ID + " " + group.getName() + "\n\n");
+			out.flush();
+			out.close();
+			sock.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
 	private synchronized void display(String message) {
 		System.out.println(message);
 	}
@@ -83,15 +105,18 @@ public class MulticastReceiver implements Runnable {
 		switch(parts[0]) {
 		
 		case "update":
-			display("DEBUG: Members: " + parts[1]);
+			display("\t\t\tDEBUG: Members: " + parts[1]);
 			updateMembers(parts[1]);
 			break;
 		case "keep-alive":
-			System.out.println(parts[1] + " keep-alive");
-			// Reset timer
+			System.out.println("\t\t\tDEBUG: Keeping " + parts[1].trim() + " alive");
+			group.getPeerByID(Integer.parseInt(parts[1].trim())).restartTimer();
+			break;
+		case "ping":
+			pingTracker();
 			break;
 		default:
-			display("Unknown tracker message: \"" + message + "\"");
+			display("\t\t\tDEBUG: Unknown tracker message: \"" + message + "\"");
 			break;
 		}
 	}
@@ -114,8 +139,9 @@ public class MulticastReceiver implements Runnable {
 		if(sender == 0) {
 			// Tracker messages have particular behavior to follow and don't need to be displayed
 			trackerMessage(parts[1]);
-		} else {
-			group.getPeerByID(sender).restartTimer();
+		} else {	
+			group.getPeerByID(sender).restartTimer(); // TODO: This is why peers get their own timers twice! Restarting just adds another to the schedule.
+			
 			display(parts[1]);
 		}
 	}

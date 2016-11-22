@@ -174,6 +174,8 @@ public class Client {
 			sockOut.write("join " + ID  + " " + channel + " " + ms.getLocalPort() + "\n\n");
 			sockOut.flush();
 			
+			joined(channel);
+			
 			initGroup(sock.getLocalAddress().toString().substring(1) + ":" + ms.getLocalPort() + "/" + ID);
 
 		} catch (IOException e) {
@@ -184,8 +186,6 @@ public class Client {
 
 		// Get list of people
 		// Convert to InetAddress
-
-		joined(channel);
 		cleanUp();
 		return ms;
 	}
@@ -201,6 +201,8 @@ public class Client {
 				sockOut.write("join " + ID  + " " + channel + " " + ms.getLocalPort() + "\n\n");
 				sockOut.flush();
 				
+				joined(channel);
+				
 				String s = sockIn.readLine();
 				s = s.split("\\s+")[1];
 				initGroup(s);
@@ -214,7 +216,6 @@ public class Client {
 			// Get list of people
 			// Convert to InetAddress
 			
-			joined(channel);
 			cleanUp();
 		}
 		
@@ -232,7 +233,7 @@ public class Client {
 	}
 	
 	static void initGroup(String incoming) {		
-		group = new PeerGroup(trackIP, trackPort);
+		group = new PeerGroup(trackIP, trackPort, channelName);
 		group.addAll(incoming);
 	}
 	
@@ -312,7 +313,7 @@ public class Client {
 				receiver = new Thread(new MulticastReceiver(IP, groupMask));
 				receiver.start();				
 			} else {
-		*/		receiver = new Thread(new MulticastReceiver(trackIP, group, listen, ID));
+		*/		receiver = new Thread(new MulticastReceiver(trackIP, trackPort, group, listen, ID));
 				receiver.start();
 		//	}
 			

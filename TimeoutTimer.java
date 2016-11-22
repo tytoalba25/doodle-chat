@@ -6,25 +6,32 @@ import java.util.TimerTask;
 
 public class TimeoutTimer extends TimerTask{
 	int ID;
+	String channelName;
+	
+	// Tracker Info
 	String IP;
 	int port;
 	
-	public TimeoutTimer(String IP, int port, int ID) {
+	
+	
+	public TimeoutTimer(String IP, int port, int ID, String cn) {
 		this.IP = IP;
 		this.port = port;
 		this.ID = ID;
+		channelName = cn;
 	}
 	
 	public void run() {
-		System.out.println("\t\tPing requested for peer #" + ID);
 		sendRequest();
 	}
 	
-	private void sendRequest() {
+	// Sends a ping-request to the tracker.
+	// TODO: Request a ping from the client first
+	private void sendRequest() {		
 		try {
-			Socket sock = new Socket("127.0.1.1", port);
+			Socket sock = new Socket(IP, port);
 			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(sock.getOutputStream()));
-			out.write("request-ping " + ID + "\n\n");
+			out.write("request-ping " + ID + " " + channelName + "\n\n");
 			out.flush();
 			sock.close();
 		} catch (IOException e) {
@@ -33,7 +40,3 @@ public class TimeoutTimer extends TimerTask{
 		}
 	}
 }
-
-
-
-// TODO: Only last member of group gets any timers.
