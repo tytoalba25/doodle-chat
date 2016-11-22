@@ -11,6 +11,14 @@ import java.io.PrintStream;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
+import org.w3c.dom.*;
+import javax.xml.parsers.*;
+import java.io.*;
+import org.xml.sax.SAXException;
+import javax.xml.transform.*;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+
 public class Tracker implements Runnable {
 	
 	// Our static shared directory of channels
@@ -18,11 +26,120 @@ public class Tracker implements Runnable {
 
 	static int id;
 	
+	// This is a workaround for static/non-static
+	// Ideally loadTracker will be called in main, but right now every network thread checks for this flag
+	// If it is set to true, the thread will call loadTracker
+	// While it is set true, the tracker will not save
+	static boolean loadFlag= false;
+	
 	// Network stuff
 	Socket csocket;
 	Tracker(Socket csocket, ArrayList<Channel> channels) {
 		this.channels = channels;
 		this.csocket = csocket;
+	}
+	
+	// Loads an XML file representing the tracker
+	public int loadTracker(String path) {
+		try {
+			// Build our xml document
+			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+			DocumentBuilder builder = factory.newDocumentBuilder();
+			Document doc = builder.parse(path);
+			
+			// Parse the xml document to build the tracker
+			Element root = doc.getDocumentElement();
+			NodeList cList = doc.getElementsByTagName("channel");
+			for (int i=0; i<cList.getLength(); i++) {
+				Node cNode = cList.item(i);
+				Element cElement = (Element) cNode;
+				
+				addChannel(cElement.getAttribute("name"));
+				Channel c = channelExists(cElement.getAttribute("name"));
+		
+				NodeList mList = root.getElementsByTagName("member");
+				for (int j=0; j<mList.getLength(); j++) {
+						Node mNode = mList.item(j);
+						Element mElement = (Element) mNode;
+	
+						String ip = mElement.getAttribute("ip");
+						String port = mElement.getAttribute("port");
+						int id = Integer.parseInt(mElement.getAttribute("id"));
+	
+						c.addMember(new Member(ip, port, id));
+				}
+			}
+			
+		} catch (ParserConfigurationException e) {
+			System.out.println(e);
+			return 0;
+		} catch (UnsupportedEncodingException e) {
+			System.out.println(e);
+			return 0;
+		} catch (SAXException e) {
+			System.out.println(e);
+			return 0;
+		} catch (IOException e) {
+			System.out.println(e);
+			return 0;
+		}
+		
+		System.out.println("Tracker loaded");
+		return 1;
+	}
+	
+	// Saves an XML file representing the tracker
+	public static int saveTracker(String path) {
+		try {
+			// Build our xml document
+			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+			DocumentBuilder builder = factory.newDocumentBuilder();
+			Document doc = builder.newDocument();
+			
+			// Add the root element
+			Element root = doc.createElement("tracker");
+			doc.appendChild(root);
+			
+			// Add the channels
+			for (int i=0; i<channels.size(); i++) {
+				Element chanElement = doc.createElement("channel");
+				Attr attr = doc.createAttribute("name");
+				attr.setValue(channels.get(i).name);
+				chanElement.setAttributeNode(attr);
+				root.appendChild(chanElement);
+				// As well as the members
+				for (int j=0; j<channels.get(i).members.size(); j++) {
+					Element memberElement = doc.createElement("member");
+					Attr idAttr = doc.createAttribute("id");
+					idAttr.setValue(String.valueOf(channels.get(i).members.get(j).getID()));
+					memberElement.setAttributeNode(idAttr);
+					Attr ipAttr = doc.createAttribute("ip");
+					ipAttr.setValue(channels.get(i).members.get(j).getIP());
+					memberElement.setAttributeNode(ipAttr);
+					Attr portAttr = doc.createAttribute("port");
+					portAttr.setValue(channels.get(i).members.get(j).getPort());
+					memberElement.setAttributeNode(portAttr);
+					chanElement.appendChild(memberElement);
+				}
+			}
+
+			// Write the xml to file
+			TransformerFactory transformerFactory = TransformerFactory.newInstance();
+			Transformer transformer = transformerFactory.newTransformer();
+			DOMSource source = new DOMSource(doc);
+			StreamResult result = new StreamResult(new File(path));
+			transformer.transform(source, result);
+			
+		} catch (ParserConfigurationException e) {
+			System.out.println(e);
+			return 0;
+		} catch (TransformerException e) {
+			System.out.println(e);
+			return 0;
+		}
+		
+		System.out.println("Tracker saved");
+		return 1;
 	}
 	
 	public static void main(String args[]) throws Exception {
@@ -45,6 +162,14 @@ public class Tracker implements Runnable {
 		// Make our directory
 		channels = new ArrayList<Channel>();
 
+		// Trys to load tracker_copy.xml
+		File f = new File("tracker_copy.xml");
+		if (f.exists() && !f.isDirectory()) {
+			loadFlag = true;
+		} else {
+			System.out.println("Unable to open tracker_copy.xml, starting blank tracker");
+		}
+		
 		// Set up our identifier
 		id = 1;
 
@@ -54,6 +179,9 @@ public class Tracker implements Runnable {
 		while(true) {
 			Socket sock = ssock.accept();
 			new Thread(new Tracker(sock, channels)).start();
+			if (loadFlag == false) {
+				saveTracker("tracker_copy.xml");
+			}
 		}
 	}
 
@@ -203,10 +331,14 @@ public class Tracker implements Runnable {
 		System.out.println("\tUpdate sent to " + getMembers(n));
 		return 1;
 	}
-		
-
+	
 	// This is the thread called when a client connects to the Tracker
 	public void run() {
+		if (loadFlag == true) {
+			loadTracker("tracker_copy.xml");
+			loadFlag = false;
+		}
+		
 		try {
 			System.out.println("Client connected from " + csocket.getRemoteSocketAddress().toString());
 
