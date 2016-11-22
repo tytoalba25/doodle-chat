@@ -49,6 +49,11 @@ public class Tracker implements Runnable {
 			
 			// Parse the xml document to build the tracker
 			Element root = doc.getDocumentElement();
+			String idS = root.getAttribute("counter");
+			System.out.println("===\n" + idS + "===");
+			if (!idS.equals("")) {
+				id = Integer.parseInt(idS);
+			}
 			NodeList cList = doc.getElementsByTagName("channel");
 			for (int i=0; i<cList.getLength(); i++) {
 				Node cNode = cList.item(i);
@@ -100,6 +105,11 @@ public class Tracker implements Runnable {
 			Element root = doc.createElement("tracker");
 			doc.appendChild(root);
 			
+			// Add the id counter
+			Attr counterAttr = doc.createAttribute("counter");
+			counterAttr.setValue(Integer.toString(id));
+			root.setAttributeNode(counterAttr);
+
 			// Add the channels
 			for (int i=0; i<channels.size(); i++) {
 				Element chanElement = doc.createElement("channel");
@@ -179,9 +189,6 @@ public class Tracker implements Runnable {
 		while(true) {
 			Socket sock = ssock.accept();
 			new Thread(new Tracker(sock, channels)).start();
-			if (loadFlag == false) {
-				saveTracker("tracker_copy.xml");
-			}
 		}
 	}
 
@@ -334,11 +341,12 @@ public class Tracker implements Runnable {
 	
 	// This is the thread called when a client connects to the Tracker
 	public void run() {
+		// Load tracker_copy.xml is flag set
 		if (loadFlag == true) {
 			loadTracker("tracker_copy.xml");
 			loadFlag = false;
 		}
-		
+
 		try {
 			System.out.println("Client connected from " + csocket.getRemoteSocketAddress().toString());
 
@@ -434,6 +442,11 @@ public class Tracker implements Runnable {
 		} catch (IOException e) {
 			System.out.println(e);
 			e.printStackTrace();
+		}
+		
+		// Save the tracker after work is done
+		if (loadFlag == false) {
+			saveTracker("tracker_copy.xml");
 		}
 	}
 	
