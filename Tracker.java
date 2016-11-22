@@ -215,6 +215,10 @@ public class Tracker implements Runnable {
 	}
 	
 	public int pingMember(String n, int memberID) {
+		synchronized(timers) {
+			if(timers.containsKey(memberID))
+				return 1;
+		}
 		System.out.println("PINGING MEMBER #" + memberID);
 		
 		Channel c = channelExists(n);
@@ -242,18 +246,17 @@ public class Tracker implements Runnable {
 			
 			
 			
-			ScheduledFuture<?> timeout = pool.schedule(new TimerTask() {
-
+			Future<?> timeout = pool.schedule(new TimerTask() {
 					@Override
 					public void run() {
 						synchronized (timers) {
-							leaveChannel(n, memberID);
 							timers.remove(memberID);
+							leaveChannel(n, memberID);
 							System.out.println("TIMEOUT: " + memberID);
 						}
 					}
 				
-				}, 2, TimeUnit.SECONDS
+				}, 5, TimeUnit.SECONDS
 			);
 			synchronized(timers) {
 				timers.put(memberID, timeout);				
@@ -277,7 +280,8 @@ public class Tracker implements Runnable {
 		}
 		try {
 			synchronized (timers) {
-				timers.get(ID).cancel(true);
+				Future<?> fut = timers.get(ID);
+				fut.cancel(false);
 				timers.remove(ID);
 			}
 		} catch (NullPointerException e) {
