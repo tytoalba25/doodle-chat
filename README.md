@@ -1,4 +1,4 @@
-# doodle-chat
+# torCHAT
 Channel based messaging application. Built for CPSC 559.
 
 Written by:
