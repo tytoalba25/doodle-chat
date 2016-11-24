@@ -370,8 +370,9 @@ public class Tracker implements Runnable {
 		try {
 			sock = new DatagramSocket(5556);
 			Member member = c.getMemberByID(memberID);
+			String ipName = member.getIP();
 
-			InetAddress ip = InetAddress.getByName(member.getIP());
+			InetAddress ip = InetAddress.getByName(ipName);
 			int port = member.getPort();
 			DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
 			
@@ -388,10 +389,11 @@ public class Tracker implements Runnable {
 							timers.remove(memberID);
 							leaveChannel(n, memberID);
 							System.out.println("TIMEOUT: " + memberID);
+							System.out.println(pool.getTaskCount());
 						}
 					}
 				
-				}, 5, TimeUnit.SECONDS
+				}, 10, TimeUnit.SECONDS
 			);
 			synchronized(timers) {
 				timers.put(memberID, timeout);				

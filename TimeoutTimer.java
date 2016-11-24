@@ -1,6 +1,7 @@
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.net.ConnectException;
 import java.net.Socket;
 import java.util.TimerTask;
 
@@ -34,9 +35,10 @@ public class TimeoutTimer extends TimerTask{
 			out.write("request-ping " + ID + " " + channelName + "\n\n");
 			out.flush();
 			sock.close();
+		} catch (ConnectException e) {
+			System.out.println("\t\t\tPING-ERROR: Tracker unreachable.");
 		} catch (IOException e) {
-			
 			e.printStackTrace();
-		}
+		} 
 	}
 }
