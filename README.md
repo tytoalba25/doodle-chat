@@ -1,6 +1,10 @@
 # doodle-chat
 Channel based messaging application. Built for CPSC 559.
 
+Written by:
+	Spencer Brier
+	Braden Ariss
+
 =========
 Compiling
 =========
@@ -38,14 +42,3 @@ The Client has many more interactions than the Tracker. First it will request a 
 		/quit
 
 When the Client joins a channel it can start communicating with any other Clients in the channel by simply typing a message and hitting return.
-
-===========
-Limitations
-===========
-As of 11/1, the following are some missing functionalities and bugs:
-	- Leaving channels not supported
-	- Unexpected input causes crashes more often than not
-	- Duplicate address in Client's member list causes duplicate messages
-	- Very little message ordering/thread safety
-	- The Client's create functionality is wonky
-	- etc.
