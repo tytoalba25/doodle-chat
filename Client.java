@@ -6,12 +6,10 @@ import java.io.OutputStreamWriter;
 import java.net.ConnectException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.Socket;
-import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
+import java.util.Map.Entry;
 import java.util.Scanner;
 
 public class Client {
@@ -20,13 +18,11 @@ public class Client {
 	static BufferedWriter sockOut = null;
 	static String displayName = null;
 	static Boolean joined = false;
-	static String IP = "";
-	static int port = -1;
+	static String trackIP = "";
+	static int trackPort = -1;
 	static int ID = -1;
-	static ArrayList<Tuple> group = new ArrayList<Tuple>();
 	static String channelName = "";
-	static InetAddress groupMask;
-	static MulticastSocket MSock;
+	static PeerGroup group;
 	
 	public static void main(String args[]) {
 		Scanner in = new Scanner(System.in);
@@ -66,11 +62,8 @@ public class Client {
 			}
 		}
 		
-		//TODO: Talk loop
-		System.out.println("This is where chatting would take place");
-		
-		
-		
+		//Talk loop
+		System.out.println("\n\nWelcome to " + channelName + "!");
 		
 		chatLoop(in, ms);
 		
@@ -94,8 +87,8 @@ public class Client {
 		}
 		String[] parts = tracker.split(":");
 		try {
-			IP = parts[0];
-			port = Integer.parseInt(parts[1]);
+			trackIP = parts[0];
+			trackPort = Integer.parseInt(parts[1]);
 		} catch (NumberFormatException e) {
 			e.printStackTrace();
 			System.exit(2);
@@ -108,7 +101,7 @@ public class Client {
 	private static void openSocket() {
 			
 		try {
-			sock = new Socket(IP, port);
+			sock = new Socket(trackIP, trackPort);
 			sockIn = new BufferedReader(new InputStreamReader(sock.getInputStream()));
 			sockOut = new BufferedWriter(new OutputStreamWriter(sock.getOutputStream()));
 		} catch (UnknownHostException e) {
@@ -180,6 +173,10 @@ public class Client {
 		try {
 			sockOut.write("join " + ID  + " " + channel + " " + ms.getLocalPort() + "\n\n");
 			sockOut.flush();
+			
+			joined(channel);
+			
+			initGroup(sock.getLocalAddress().toString().substring(1) + ":" + ms.getLocalPort() + "/" + ID);
 
 		} catch (IOException e) {
 			System.out.println(e.getMessage());
@@ -189,8 +186,6 @@ public class Client {
 
 		// Get list of people
 		// Convert to InetAddress
-
-		joined(channel);
 		cleanUp();
 		return ms;
 	}
@@ -206,6 +201,8 @@ public class Client {
 				sockOut.write("join " + ID  + " " + channel + " " + ms.getLocalPort() + "\n\n");
 				sockOut.flush();
 				
+				joined(channel);
+				
 				String s = sockIn.readLine();
 				s = s.split("\\s+")[1];
 				initGroup(s);
@@ -219,7 +216,6 @@ public class Client {
 			// Get list of people
 			// Convert to InetAddress
 			
-			joined(channel);
 			cleanUp();
 		}
 		
@@ -230,35 +226,15 @@ public class Client {
 		try {
 			return new MulticastSocket();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		
 		return null;
 	}
 	
-	static void initGroup(String incoming) {
-		String[] members = incoming.split(",");
-		
-		System.out.println(incoming);
-		try {
-			String[] parts;
-			String[] rightParts;
-			for (String peer : members) {
-				parts = peer.split(":");
-				rightParts = parts[1].split("/");
-				group.add(new Tuple(
-						InetAddress.getByName(parts[0]), 
-						Integer.parseInt(rightParts[0]),
-						Integer.parseInt(rightParts[1].trim())
-				));
-			}
-		} catch (NumberFormatException e) {
-			e.printStackTrace();
-		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+	static void initGroup(String incoming) {		
+		group = new PeerGroup(trackIP, trackPort, channelName);
+		group.addAll(incoming);
 	}
 	
 	
@@ -329,17 +305,17 @@ public class Client {
 		
 		try {
 
-			groupMask = InetAddress.getByName("225.4.5.6");
+		//	groupMask = InetAddress.getByName("225.4.5.6");
 			
 			Thread receiver;
 			// TODO: Remove if/else once multicast is functional
-			if(MC) {
+		/*	if(MC) {
 				receiver = new Thread(new MulticastReceiver(IP, groupMask));
 				receiver.start();				
 			} else {
-				receiver = new Thread(new MulticastReceiver(IP, group, listen));
+		*/		receiver = new Thread(new MulticastReceiver(trackIP, trackPort, group, listen, ID));
 				receiver.start();
-			}
+		//	}
 			
 			
 			MulticastSocket sock = new MulticastSocket();
@@ -349,7 +325,7 @@ public class Client {
 			
 			// TODO: Remove if/else once multicast is functional
 			if(MC) {
-				multicast(sock, displayName + " has left the chat."); 
+//				multicast(sock, displayName + " has left the chat."); 
 			} else  {
 				P2PUDP(sock, displayName + " has joined the chat."); 
 			}
@@ -360,7 +336,7 @@ public class Client {
 					try {
 						// TODO: Remove if/else once multicast is functional
 						if(MC) {
-							multicast(sock, displayName + " has left the chat."); 
+//							multicast(sock, displayName + " has left the chat."); 
 						} else  {
 							P2PUDP(sock, displayName + " has left the chat."); 
 						}
@@ -370,14 +346,14 @@ public class Client {
 						sockOut.flush();
 						cleanUp();
 					} catch (IOException e) {
-						// TODO Auto-generated catch block
+						
 						e.printStackTrace();
 					}
 					break;
 				} else {	
 					// TODO: Remove if/else once multicast is functional
 					if(MC) {
-						multicast(sock, (displayName + ": " + message));
+//						multicast(sock, (displayName + ": " + message));
 					} else  {
 						P2PUDP(sock, (displayName + ": " + message));
 					}
@@ -388,7 +364,7 @@ public class Client {
 			sock.close();
 			
 		} catch (IOException e1) {
-			// TODO Auto-generated catch block
+			
 			e1.printStackTrace();
 		}
 		
@@ -396,22 +372,26 @@ public class Client {
 	}
 	
 	// Sends out a UDP message to each peer one at a time
-	private static synchronized void P2PUDP(DatagramSocket sock, String message) {
+	private static synchronized void P2PUDP(DatagramSocket sock, String plainText) {
 		//System.out.println(message);
+		
+		String message = ID + "~" + plainText;
+		
 		byte[] buffer = message.getBytes();
 		DatagramPacket packet;
 		
-		for(int i = 0; i < group.size(); i++) {
-			packet = new DatagramPacket(buffer, buffer.length, group.get(i).getAddr(), group.get(i).getPort());
+		for(Entry<Integer, Peer> idPeer : group) {
+			Peer peer = idPeer.getValue();
+			packet = new DatagramPacket(buffer, buffer.length, peer.getAddr(), peer.getPort());
 			try {
 				sock.send(packet);
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
+				
 				e.printStackTrace();
 			}
 		}
 	}
-	
+/*	
 	// TODO: Fix this
 	// Sends a multicast message to group.
 	private static synchronized void multicast(MulticastSocket sock, String message) {
@@ -421,9 +401,9 @@ public class Client {
 			sock.send(packet);
 			System.out.println("Sent packet with message: " + message);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
+			
 			e.printStackTrace();
 		}
 	}
-	
+*/	
 }
