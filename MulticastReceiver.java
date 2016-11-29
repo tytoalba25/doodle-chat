@@ -115,10 +115,17 @@ public class MulticastReceiver implements Runnable {
 		case "ping":
 			pingTracker();
 			break;
+		case "pingP2P":
+			pingP2P();
+			break;
 		default:
 			display("\t\t\tDEBUG: Unknown tracker message: \"" + message + "\"");
 			break;
 		}
+	}
+	
+	private void pingP2P() {
+		
 	}
 	
 	// Re-populates the list of peers
@@ -140,8 +147,7 @@ public class MulticastReceiver implements Runnable {
 			// Tracker messages have particular behavior to follow and don't need to be displayed
 			trackerMessage(parts[1]);
 		} else {	
-			group.getPeerByID(sender).restartTimer(); // TODO: This is why peers get their own timers twice! Restarting just adds another to the schedule.
-			
+			group.getPeerByID(sender).restartTimer();
 			display(parts[1]);
 		}
 	}

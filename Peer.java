@@ -43,7 +43,10 @@ public class Peer {
 	
 	public void startTimer() {
 		future = pool.schedule(
-				new TimeoutTimer(trackIP, trackPort, ID, channelName), 
+				new TimeoutTimer(
+						trackIP, trackPort, 
+						addr.toString().substring(1).split(":")[0], port, 
+						ID, channelName), 
 				PING_INTERVAL, 
 				TimeUnit.SECONDS
 		);		
