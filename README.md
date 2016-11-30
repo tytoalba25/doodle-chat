@@ -2,7 +2,7 @@
 Channel based messaging application. Built for CPSC 559.
 
 Written by:
-	Spencer Briere
+	Spencer Brier
 	Braden Ariss
 
 =========

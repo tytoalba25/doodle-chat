@@ -40,7 +40,7 @@ public class TimeoutTimer extends TimerTask{
 	public void run() {
 		sendP2PRequest();
 		try {
-			Thread.sleep(100);;
+			Thread.sleep(1000);;
 			sendTrackRequest();
 		} catch (InterruptedException e) {
 			System.out.println("\t\t\tDEBUG: Peer " + ID + " replied, keeping alive.");

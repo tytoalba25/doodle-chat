@@ -33,6 +33,7 @@ public class Tracker implements Runnable {
 	static Map<Integer, Future<?>> timers;
 	static ScheduledThreadPoolExecutor pool;
 	static final int MAX_TIMERS = 50;
+	static final int PING_INTERVAL = 2;
 
 	static int id;
 
@@ -406,7 +407,7 @@ public class Tracker implements Runnable {
 								}
 							}
 
-						}, 1, TimeUnit.SECONDS);
+						}, PING_INTERVAL, TimeUnit.SECONDS);
 
 						timers.put(memberID, timeout);
 					}
@@ -423,6 +424,7 @@ public class Tracker implements Runnable {
 		return 1;
 	}
 
+	@SuppressWarnings("resource")
 	public int processPing(int ID, String n) {
 		System.out.println("KEEP-ALIVE MEMBER #" + ID);
 		Channel c = channelExists(n);
@@ -455,7 +457,6 @@ public class Tracker implements Runnable {
 
 			InetAddress ip;
 			int port;
-			int id;
 			DatagramPacket packet;
 			for (int i = 0; i < c.members.size(); i++) {
 				try {
