@@ -60,6 +60,7 @@ public class PeerGroup implements Iterable<Entry<Integer, Peer>>{
 								channelName
 						);
 						addPeer(newPeer);
+						newPeer.startTimer();
 					}
 				}
 

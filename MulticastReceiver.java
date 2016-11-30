@@ -4,11 +4,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.Map.Entry;
 
 public class MulticastReceiver implements Runnable {
 
@@ -102,14 +104,13 @@ public class MulticastReceiver implements Runnable {
 	private void trackerMessage(String message) {
 		String[] parts = message.split(" ");
 		
-		switch(parts[0]) {
+		switch(parts[0].trim()) {
 		
 		case "update":
 			display("\t\t\tDEBUG: Members: " + parts[1]);
 			updateMembers(parts[1]);
 			break;
 		case "keep-alive":
-			System.out.println("\t\t\tDEBUG: Keeping " + parts[1].trim() + " alive");
 			group.getPeerByID(Integer.parseInt(parts[1].trim())).restartTimer();
 			break;
 		case "ping":
@@ -123,8 +124,26 @@ public class MulticastReceiver implements Runnable {
 			break;
 		}
 	}
-	
+
 	private void pingP2P() {
+		// Broadcast to all
+
+		String message = "0~keep-alive " + ID;
+
+		byte[] buffer = message.getBytes();
+		DatagramPacket packet;
+
+		for (Entry<Integer, Peer> idPeer : group) {
+			Peer peer = idPeer.getValue();
+			packet = new DatagramPacket(buffer, buffer.length, peer.getAddr(), peer.getPort());
+			try {
+				sock.send(packet);
+			} catch (IOException e) {
+
+				e.printStackTrace();
+			}
+		}
+		
 		
 	}
 	

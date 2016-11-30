@@ -2,9 +2,12 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.ConnectException;
+import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.TimerTask;
 
 public class TimeoutTimer extends TimerTask{
@@ -37,10 +40,10 @@ public class TimeoutTimer extends TimerTask{
 	public void run() {
 		sendP2PRequest();
 		try {
-			this.wait(1000);
+			Thread.sleep(100);;
 			sendTrackRequest();
 		} catch (InterruptedException e) {
-			System.out.println("ERR: Wait interupted.");
+			System.out.println("\t\t\tDEBUG: Peer " + ID + " replied, keeping alive.");
 		}
 	}
 	
@@ -61,8 +64,22 @@ public class TimeoutTimer extends TimerTask{
 	}
 	
 	private void sendP2PRequest() {
+		// Send request via 0~
 		try {
 			DatagramSocket sock = new DatagramSocket();
+			String message = "0~pingP2P";
+			byte[] buff = message.getBytes();
+			
+			try {
+				DatagramPacket pack = new DatagramPacket(buff, buff.length, InetAddress.getByName(peerIP), peerPort);
+				sock.send(pack);
+			} catch (UnknownHostException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block

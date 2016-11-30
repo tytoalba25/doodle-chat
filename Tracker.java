@@ -27,7 +27,7 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
 public class Tracker implements Runnable {
-	
+
 	// Our static shared directory of channels
 	static ArrayList<Channel> channels;
 	static Map<Integer, Future<?>> timers;
@@ -35,20 +35,22 @@ public class Tracker implements Runnable {
 	static final int MAX_TIMERS = 50;
 
 	static int id;
-	
+
 	// This is a workaround for static/non-static
-	// Ideally loadTracker will be called in main, but right now every network thread checks for this flag
+	// Ideally loadTracker will be called in main, but right now every network
+	// thread checks for this flag
 	// If it is set to true, the thread will call loadTracker
 	// While it is set true, the tracker will not save
-	static boolean loadFlag= false;
-	
+	static boolean loadFlag = false;
+
 	// Network stuff
 	Socket csocket;
+
 	Tracker(Socket csocket, ArrayList<Channel> channels) {
 		this.channels = channels;
 		this.csocket = csocket;
 	}
-	
+
 	// Loads an XML file representing the tracker
 	public int loadTracker(String path) {
 		try {
@@ -56,7 +58,7 @@ public class Tracker implements Runnable {
 			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 			DocumentBuilder builder = factory.newDocumentBuilder();
 			Document doc = builder.parse(path);
-			
+
 			// Parse the xml document to build the tracker
 			Element root = doc.getDocumentElement();
 			String idS = root.getAttribute("counter");
@@ -65,26 +67,26 @@ public class Tracker implements Runnable {
 				id = Integer.parseInt(idS);
 			}
 			NodeList cList = doc.getElementsByTagName("channel");
-			for (int i=0; i<cList.getLength(); i++) {
+			for (int i = 0; i < cList.getLength(); i++) {
 				Node cNode = cList.item(i);
 				Element cElement = (Element) cNode;
-				
+
 				addChannel(cElement.getAttribute("name"));
 				Channel c = channelExists(cElement.getAttribute("name"));
-		
+
 				NodeList mList = root.getElementsByTagName("member");
-				for (int j=0; j<mList.getLength(); j++) {
-						Node mNode = mList.item(j);
-						Element mElement = (Element) mNode;
-	
-						String ip = mElement.getAttribute("ip");
-						String port = mElement.getAttribute("port");
-						int id = Integer.parseInt(mElement.getAttribute("id"));
-	
-						c.addMember(new Member(ip, Integer.parseInt(port), id));
+				for (int j = 0; j < mList.getLength(); j++) {
+					Node mNode = mList.item(j);
+					Element mElement = (Element) mNode;
+
+					String ip = mElement.getAttribute("ip");
+					String port = mElement.getAttribute("port");
+					int id = Integer.parseInt(mElement.getAttribute("id"));
+
+					c.addMember(new Member(ip, Integer.parseInt(port), id));
 				}
 			}
-			
+
 		} catch (ParserConfigurationException e) {
 			System.out.println(e);
 			return 0;
@@ -98,11 +100,11 @@ public class Tracker implements Runnable {
 			System.out.println(e);
 			return 0;
 		}
-		
+
 		System.out.println("Tracker loaded");
 		return 1;
 	}
-	
+
 	// Saves an XML file representing the tracker
 	public static int saveTracker(String path) {
 		try {
@@ -110,25 +112,25 @@ public class Tracker implements Runnable {
 			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 			DocumentBuilder builder = factory.newDocumentBuilder();
 			Document doc = builder.newDocument();
-			
+
 			// Add the root element
 			Element root = doc.createElement("tracker");
 			doc.appendChild(root);
-			
+
 			// Add the id counter
 			Attr counterAttr = doc.createAttribute("counter");
 			counterAttr.setValue(Integer.toString(id));
 			root.setAttributeNode(counterAttr);
 
 			// Add the channels
-			for (int i=0; i<channels.size(); i++) {
+			for (int i = 0; i < channels.size(); i++) {
 				Element chanElement = doc.createElement("channel");
 				Attr attr = doc.createAttribute("name");
 				attr.setValue(channels.get(i).name);
 				chanElement.setAttributeNode(attr);
 				root.appendChild(chanElement);
 				// As well as the members
-				for (int j=0; j<channels.get(i).members.size(); j++) {
+				for (int j = 0; j < channels.get(i).members.size(); j++) {
 					Element memberElement = doc.createElement("member");
 					Attr idAttr = doc.createAttribute("id");
 					idAttr.setValue(String.valueOf(channels.get(i).members.get(j).getID()));
@@ -149,7 +151,7 @@ public class Tracker implements Runnable {
 			DOMSource source = new DOMSource(doc);
 			StreamResult result = new StreamResult(new File(path));
 			transformer.transform(source, result);
-			
+
 		} catch (ParserConfigurationException e) {
 			System.out.println(e);
 			return 0;
@@ -157,11 +159,11 @@ public class Tracker implements Runnable {
 			System.out.println(e);
 			return 0;
 		}
-		
+
 		System.out.println("Tracker saved");
 		return 1;
 	}
-	
+
 	public static void main(String args[]) throws Exception {
 		// Check arguments
 		if (args.length != 1) {
@@ -177,7 +179,8 @@ public class Tracker implements Runnable {
 		}
 
 		// Display the ip that should be used to connect to the tracker
-		System.out.println("In order to connect to the tracker, use:\n\tAddress: " + InetAddress.getLocalHost() + "\n\tPort: " + port);
+		System.out.println("In order to connect to the tracker, use:\n\tAddress: " + InetAddress.getLocalHost()
+				+ "\n\tPort: " + port);
 
 		// Make our directory
 		channels = new ArrayList<Channel>();
@@ -191,14 +194,15 @@ public class Tracker implements Runnable {
 		} else {
 			System.out.println("Unable to open tracker_copy.xml, starting blank tracker");
 		}
-		
+
 		// Set up our identifier
 		id = 1;
 
-		// Open a server socket, listen for connections and create threads for them
+		// Open a server socket, listen for connections and create threads for
+		// them
 		ServerSocket ssock = new ServerSocket(port);
 		System.out.println("Listening for clients on port " + port);
-		while(true) {
+		while (true) {
 			Socket sock = ssock.accept();
 			new Thread(new Tracker(sock, channels)).start();
 		}
@@ -218,19 +222,19 @@ public class Tracker implements Runnable {
 			return true;
 		}
 	}
-	
+
 	// Checks if a channel exists in the directory
 	// If it does, return the channel
 	// If it doesn't, return null
 	public Channel channelExists(String n) {
-		for (int i=0; i<channels.size(); i++) {
+		for (int i = 0; i < channels.size(); i++) {
 			if (channels.get(i).name.equals(n)) {
 				return channels.get(i);
 			}
 		}
 		return null;
 	}
-	
+
 	// Add a channel to the directory
 	// If the channel already exists, return 0
 	// Otherwise create the channel and return 1
@@ -242,23 +246,23 @@ public class Tracker implements Runnable {
 		channels.add(new Channel(n));
 		return 1;
 	}
-	
+
 	// Join a channel already in the directory
 	// If the channel doesn't exist, return 0
 	// Otherwise add the ip to the channel and return 1
 	public int joinChannel(String n, String p, String m, int id) {
 		Channel c = channelExists(n);
-		synchronized( c ) {
+		synchronized (c) {
 			if (c != null) {
 				c.addMember(new Member(m, Integer.parseInt(p), id));
 				updateMembers(n);
 				return 1;
 			}
 		}
-		
+
 		return 0;
 	}
-	
+
 	// Leave a channel that you are already a member of
 	// If the channel or member doesn't exist, return 0
 	// Otherwise remove the member from the channel and return 1
@@ -267,8 +271,8 @@ public class Tracker implements Runnable {
 		if (c == null) {
 			return 0;
 		}
-		synchronized ( c ) {
-			for (int i=0; i<c.members.size(); i++) {
+		synchronized (c) {
+			for (int i = 0; i < c.members.size(); i++) {
 				if (c.members.get(i).id == id) {
 					c.members.remove(i);
 					updateMembers(n);
@@ -278,20 +282,22 @@ public class Tracker implements Runnable {
 		}
 		return 0;
 	}
-	
-	// Return a single line string listing the names of all channels seperated by commas
+
+	// Return a single line string listing the names of all channels seperated
+	// by commas
 	public String getChannels() {
 		String val = "";
-		for (int i=0; i<channels.size(); i++) {
+		for (int i = 0; i < channels.size(); i++) {
 			val += channels.get(i);
-			if (i < channels.size()-1) {
+			if (i < channels.size() - 1) {
 				val += ",";
 			}
 		}
 		return val;
 	}
-	
-	// Return a single line string listing the ip's of all members of a channel, seperated by commas
+
+	// Return a single line string listing the ip's of all members of a channel,
+	// seperated by commas
 	public String getMembers(String channel) {
 		String val = "";
 		Channel c = channelExists(channel);
@@ -312,21 +318,22 @@ public class Tracker implements Runnable {
 		return val;
 	}
 
-	// Send a message to update the members of a channel when a change in membership occurs
+	// Send a message to update the members of a channel when a change in
+	// membership occurs
 	public int updateMembers(String n) {
 		System.out.println("UPDATING MEMBERS");
 		Channel c = channelExists(n);
 		if (c == null) {
 			return 0;
 		}
-		synchronized ( c ) {
+		synchronized (c) {
 			String message = "0~update ";
 			message += getMembers(n);
 			message += "\n\n";
-			
+
 			DatagramSocket sock;
 			byte[] buffer = message.getBytes();
-			
+
 			try {
 				sock = new DatagramSocket(5556);
 			} catch (IOException e) {
@@ -337,11 +344,11 @@ public class Tracker implements Runnable {
 			int port;
 			int id;
 			DatagramPacket packet;
-			for (int i=0; i<c.members.size(); i++) {
+			for (int i = 0; i < c.members.size(); i++) {
 				try {
-				ip = InetAddress.getByName(c.members.get(i).getIP());
-				port = c.members.get(i).getPort();
-				packet = new DatagramPacket(buffer, buffer.length, ip, port);
+					ip = InetAddress.getByName(c.members.get(i).getIP());
+					port = c.members.get(i).getPort();
+					packet = new DatagramPacket(buffer, buffer.length, ip, port);
 					sock.send(packet);
 				} catch (IOException e) {
 					return 0;
@@ -354,27 +361,26 @@ public class Tracker implements Runnable {
 		System.out.println("\tUpdate sent to " + getMembers(n));
 		return 1;
 	}
-	
+
 	public int pingMember(String n, int memberID) {
-		synchronized(timers) {
-			if(timers.containsKey(memberID))
+		synchronized (timers) {
+			if (timers.containsKey(memberID))
 				return 1;
 		}
 		System.out.println("PINGING MEMBER #" + memberID);
-		
+
 		Channel c = channelExists(n);
-		
-		synchronized( c ) {
+
+		synchronized (c) {
 			if (c == null) {
 				return 0;
 			}
-			
-			
+
 			String message = "0~ping \n\n";
-			
+
 			DatagramSocket sock;
 			byte[] buffer = message.getBytes();
-			
+
 			try {
 				sock = new DatagramSocket(5556);
 				Member member = c.getMemberByID(memberID);
@@ -383,28 +389,27 @@ public class Tracker implements Runnable {
 				InetAddress ip = InetAddress.getByName(ipName);
 				int port = member.getPort();
 				DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
-				
+
 				sock.send(packet);
 
 				sock.close();
-				
-				
-				
-				Future<?> timeout = pool.schedule(new TimerTask() {
-						@Override
-						public void run() {
-							synchronized (timers) {
-								timers.remove(memberID);
-								leaveChannel(n, memberID);
-								System.out.println("TIMEOUT: " + memberID);
-								System.out.println(pool.getTaskCount());
+				synchronized (timers) {
+					if (!timers.containsKey(memberID)) {
+						Future<?> timeout = pool.schedule(new TimerTask() {
+							@Override
+							public void run() {
+								synchronized (timers) {
+									timers.remove(memberID);
+									leaveChannel(n, memberID);
+									System.out.println("TIMEOUT: " + memberID);
+									System.out.println(pool.getTaskCount());
+								}
 							}
-						}
-					
-					}, 120, TimeUnit.SECONDS
-				);
-				synchronized(timers) {
-					timers.put(memberID, timeout);				
+
+						}, 1, TimeUnit.SECONDS);
+
+						timers.put(memberID, timeout);
+					}
 				}
 
 			} catch (UnknownHostException e) {
@@ -414,15 +419,15 @@ public class Tracker implements Runnable {
 				return 0;
 			}
 		}
-		
+
 		return 1;
 	}
-	
-	public int processPing(int ID, String n) {		
+
+	public int processPing(int ID, String n) {
 		System.out.println("KEEP-ALIVE MEMBER #" + ID);
 		Channel c = channelExists(n);
-		
-		synchronized( c ) {
+
+		synchronized (c) {
 			if (c == null) {
 				return 0;
 			}
@@ -441,7 +446,7 @@ public class Tracker implements Runnable {
 
 			DatagramSocket sock;
 			byte[] buffer = message.getBytes();
-			
+
 			try {
 				sock = new DatagramSocket(5556);
 			} catch (IOException e) {
@@ -452,11 +457,11 @@ public class Tracker implements Runnable {
 			int port;
 			int id;
 			DatagramPacket packet;
-			for (int i=0; i<c.members.size(); i++) {
+			for (int i = 0; i < c.members.size(); i++) {
 				try {
-				ip = InetAddress.getByName(c.members.get(i).getIP());
-				port = c.members.get(i).getPort();
-				packet = new DatagramPacket(buffer, buffer.length, ip, port);
+					ip = InetAddress.getByName(c.members.get(i).getIP());
+					port = c.members.get(i).getPort();
+					packet = new DatagramPacket(buffer, buffer.length, ip, port);
 					sock.send(packet);
 				} catch (IOException e) {
 					return 0;
@@ -467,11 +472,9 @@ public class Tracker implements Runnable {
 
 			System.out.println("\tKeep-Alive sent to " + getMembers(n));
 		}
-		
-		
+
 		return 1;
 	}
-		
 
 	// This is the thread called when a client connects to the Tracker
 	public void run() {
@@ -487,7 +490,7 @@ public class Tracker implements Runnable {
 			// Create our input/output
 			BufferedReader in = new BufferedReader(new InputStreamReader(csocket.getInputStream()));
 			PrintStream out = new PrintStream(csocket.getOutputStream());
-			
+
 			// Read request
 			String input = in.readLine();
 			System.out.println("\tInput: " + input);
@@ -495,69 +498,72 @@ public class Tracker implements Runnable {
 
 			// Split message by space
 			String[] parts = input.split("\\s+");
-			
-			// If any errors occur (most likely nullpointer) assume malformed request
+
+			// If any errors occur (most likely nullpointer) assume malformed
+			// request
 			try {
 
-			// Process a register request
-			if (input.startsWith("register")) {
-				System.out.println("\tProcessing register request");
-				output = Integer.toString(giveID());
-			// If not a register request then make sure that id is valid
-			} else if (!validID(Integer.parseInt(parts[1]))) {
-				output = "failure";
-				input = "";
-			}
+				// Process a register request
+				if (input.startsWith("register")) {
+					System.out.println("\tProcessing register request");
+					output = Integer.toString(giveID());
+					// If not a register request then make sure that id is valid
+				} else if (!validID(Integer.parseInt(parts[1]))) {
+					output = "failure";
+					input = "";
+				}
 
-			// Process a get request
-			if (input.startsWith("get")) {
-				System.out.println("\tProcessing get request");
-				output = getChannels();
-			}
-			
-			// Process a create request
-			if (input.startsWith("create")) {
-				System.out.println("\tProcessing create request");
-				if (addChannel(parts[2]) != 1) {
-					output = "failure";
-				} else {
-					output = "success";
+				// Process a get request
+				if (input.startsWith("get")) {
+					System.out.println("\tProcessing get request");
+					output = getChannels();
 				}
-			}
-			
-			// Process a join request
-			if (input.startsWith("join")) {
-				System.out.println("\tProcessing join request");
-							// Channel Name, IP, ID
-				if (joinChannel(parts[2], parts[3], csocket.getRemoteSocketAddress().toString().substring(1).split(":")[0], Integer.parseInt(parts[1])) != 1) {	
-					output = "failure";
-				} else {
-					output = "success ";
-					output += getMembers(parts[2]);
-					output += "";
-				}
-			}
-			
-			// Process a leave request
-			if (input.startsWith("leave")) {
-				System.out.println("\tProcessing leave request");
-				if (leaveChannel(parts[2], Integer.parseInt(parts[1])) != 1) {
-					output = "failure";
-				} else {
-					output = "success";
-				}
-			}
-			
-			// Process a request-ping request
-			if (input.startsWith("request-ping")) {
-				pingMember(parts[2], Integer.parseInt(parts[1]));
-			}
 
-			// Process a ping request
-			if (input.startsWith("ping")) {
-				processPing(Integer.parseInt(parts[1]), parts[2]);
-			}
-			
+				// Process a create request
+				if (input.startsWith("create")) {
+					System.out.println("\tProcessing create request");
+					if (addChannel(parts[2]) != 1) {
+						output = "failure";
+					} else {
+						output = "success";
+					}
+				}
+
+				// Process a join request
+				if (input.startsWith("join")) {
+					System.out.println("\tProcessing join request");
+					// Channel Name, IP, ID
+					if (joinChannel(parts[2], parts[3],
+							csocket.getRemoteSocketAddress().toString().substring(1).split(":")[0],
+							Integer.parseInt(parts[1])) != 1) {
+						output = "failure";
+					} else {
+						output = "success ";
+						output += getMembers(parts[2]);
+						output += "";
+					}
+				}
+
+				// Process a leave request
+				if (input.startsWith("leave")) {
+					System.out.println("\tProcessing leave request");
+					if (leaveChannel(parts[2], Integer.parseInt(parts[1])) != 1) {
+						output = "failure";
+					} else {
+						output = "success";
+					}
+				}
+
+				// Process a request-ping request
+				if (input.startsWith("request-ping")) {
+					pingMember(parts[2], Integer.parseInt(parts[1]));
+				}
+
+				// Process a ping request
+				if (input.startsWith("ping")) {
+					processPing(Integer.parseInt(parts[1]), parts[2]);
+				}
+
 			} catch (Exception e) {
 				System.out.println(e);
 				e.printStackTrace();
@@ -567,7 +573,7 @@ public class Tracker implements Runnable {
 			// Send response
 			out.println(output);
 			out.flush();
-			
+
 			// Clean up
 			out.close();
 			in.close();
@@ -577,30 +583,31 @@ public class Tracker implements Runnable {
 			System.out.println(e);
 			e.printStackTrace();
 		}
-		
+
 		// Save the tracker after work is done
 		if (loadFlag == false) {
 			saveTracker("tracker_copy.xml");
 		}
 	}
-	
+
 	// Channel class
 	// These are individual members of the channels ArrayList
-	// Each one contains a name and a list of members, represented by Member objects
+	// Each one contains a name and a list of members, represented by Member
+	// objects
 	public class Channel {
 		public String name;
 		private ArrayList<Member> members;
-		
+
 		public Channel(String n) {
 			name = n;
 			members = new ArrayList<Member>();
 		}
-		
+
 		// Add a member to the channel
 		// If the member already exists, return 0
 		// Otherwise add the member and return 1
 		public int addMember(Member m) {
-			for (int i=0; i<members.size(); i++) {
+			for (int i = 0; i < members.size(); i++) {
 				if (m.getID() == members.get(i).getID()) {
 					return 0;
 				}
@@ -608,34 +615,34 @@ public class Tracker implements Runnable {
 			members.add(m);
 			return 1;
 		}
-		
+
 		// Return a string representing the channel
 		public String toString() {
 			return name;
 		}
-		
+
 		public Member getMemberByID(int ID) {
-			for(Member member : members) {
-				if(member.getID() == ID)
+			for (Member member : members) {
+				if (member.getID() == ID)
 					return member;
 			}
 			return null;
 		}
 	}
-	
+
 	// Member class
 	// Contains a pairing of the user's ip address, UDP port, and unique id
 	public class Member {
 		private String address;
 		private int id;
 		private int port;
-		
+
 		public Member(String a, int p, int i) {
 			address = a;
 			id = i;
 			port = p;
 		}
-		
+
 		public int getID() {
 			return id;
 		}
@@ -643,14 +650,14 @@ public class Tracker implements Runnable {
 		public String toString() {
 			return address + ":" + port + "/" + id;
 		}
-		
+
 		public String getIP() {
 			return address;
 		}
-		
+
 		public int getPort() {
 			return port;
 		}
 	}
-	
+
 }

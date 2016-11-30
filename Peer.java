@@ -15,7 +15,7 @@ public class Peer {
 	private int trackPort;
 	
 	// Timer stuff
-	private final int PING_INTERVAL = 10;
+	private final int PING_INTERVAL = 5;
 	private ScheduledThreadPoolExecutor pool;
 	private Future<?> future;
 	
