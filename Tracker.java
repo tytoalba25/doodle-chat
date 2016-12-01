@@ -23,21 +23,27 @@ public class Tracker implements Runnable {
 
 	// Our static shared directory of channels
 	static Directory dir;
+
+	// Timers
 	static Map<Integer, Future<?>> timers;
 	static ScheduledThreadPoolExecutor pool;
 	static final int MAX_TIMERS = 50;
 	static final int PING_INTERVAL = 2;
 
+	// ID counter
 	static int id;
 
 	// Network stuff
 	Socket csocket;
 
+	// Constructor
 	Tracker(Socket csocket, Directory dir) {
 		this.dir = dir;
 		this.csocket = csocket;
 	}
 
+	// Main function
+	// This sets up the directory and starts listening for connections
 	public static void main(String args[]) throws Exception {
 		// Check arguments
 		if (args.length != 1) {
@@ -182,6 +188,7 @@ public class Tracker implements Runnable {
 									dir.leaveChannel(n, memberID);
 									System.out.println("TIMEOUT: " + memberID);
 									System.out.println(pool.getTaskCount());
+									dir.saveTracker("tracker_copy.xml");
 								}
 							}
 
