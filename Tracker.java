@@ -187,7 +187,7 @@ public class Tracker implements Runnable {
 									timers.remove(memberID);
 									dir.leaveChannel(n, memberID);
 									System.out.println("TIMEOUT: " + memberID);
-									System.out.println(pool.getTaskCount());
+									updateMembers(n);
 									dir.saveTracker("tracker_copy.xml");
 								}
 							}
