@@ -58,7 +58,7 @@ public class Directory {
 		synchronized (c) {
 			c.removeMember(id);
 		}
-		return 0;
+		return 1;
 	}
 	
 	// Return a single line string listing the names of all channels seperated
