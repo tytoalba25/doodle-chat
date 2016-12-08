@@ -1,8 +1,11 @@
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.Socket;
@@ -20,8 +23,30 @@ public class MulticastReceiver implements Runnable {
 	Boolean MC = false;
 	int ID;
 	
+	// New constructor for use with multicast
+	// TODO: Fix this
+	public MulticastReceiver(String trackerIP, InetAddress group) {
+		try {
+			sock = new MulticastSocket(5556);
+			sock.joinGroup(group);
+			
+			tracker = InetAddress.getByName(trackerIP);
+
+			// TODO: Remove. For test toggling only
+			MC = false;
+			
+		} catch (UnknownHostException e) {
+			
+			e.printStackTrace();
+		} catch (IOException e1) {
+			
+			e1.printStackTrace();
+		}
+		
+	}
 	
-	// Constructor for Basic Multicast. IP/Multicast would be preferable
+	
+	// Old constructor for non-true multicasting
 	public MulticastReceiver(String tIP, int tPort, PeerGroup group, MulticastSocket sock, int myID) {
 		this.sock = sock;
 		try {
@@ -40,7 +65,6 @@ public class MulticastReceiver implements Runnable {
 		try {
 			
 			byte[] buffer;
-			// Always listening
 			while(true) {
 				buffer = new byte[65500];
 				
@@ -58,8 +82,9 @@ public class MulticastReceiver implements Runnable {
 		}		
 	}
 	
-	// Notifies the tracker that this peer is still alive
 	private void pingTracker() {
+		
+		//System.out.println("\t\t\tDEBUG: Ping not yet fully implemented");
 		Socket sock;
 		try {
 			sock = new Socket(tracker, trackPort);
@@ -102,8 +127,6 @@ public class MulticastReceiver implements Runnable {
 		}
 	}
 
-	// Called when a peer requests a ping.
-	// Broadcast to all peers that we are still alive.
 	private void pingP2P() {
 		// Broadcast to all
 
@@ -128,12 +151,12 @@ public class MulticastReceiver implements Runnable {
 	
 	// Re-populates the list of peers
 	private synchronized void updateMembers(String members) {
+		// TODO: Remove. For test toggling only
+		if(MC)
+			return;
 		group.addAll(members);
 	}
 	
-	
-	// Determines if received message is a tracker message or not.
-	// It determines this by parsing for the ID at the start of string
 	private void recieved(DatagramPacket packet) throws UnknownHostException {
 		String data = new String(packet.getData());
 		String[] parts = data.split("~");

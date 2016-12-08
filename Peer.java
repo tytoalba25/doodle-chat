@@ -42,7 +42,6 @@ public class Peer {
 		startTimer();	
 	}
 	
-	// TimeoutTimer will contact the addr and ID given once it expires. It will then contact the tracker if it does not receive a response in time.
 	public void startTimer() {
 		future = pool.schedule(
 				new TimeoutTimer(
