@@ -100,40 +100,42 @@ public class Client {
 			// I am so sorry about this block. It is probably some of the ugliest stuff I've ever done.
 			
 			BufferedReader file = new BufferedReader (new FileReader(new File (dir)));
-			//String tracker = file.readLine();
-			String tracker = file.readLine();
-			String[] parts = tracker.split(":");
-			trackIP = parts[0];
-			trackPort = Integer.parseInt(parts[1]);
-			/*
-			 * while((tracker = file.readLine()) != null) {
+			
+			
+			//TODO: Load balancing needs fixing.
+			String tracker;
+			String[] parts;
+			
+			String tmpIP;
+			int tmpPort;
+			
+			 while((tracker = file.readLine()) != null) {
 				try {
-					String[] parts = tracker.split(":");
-
-					trackIP = parts[0];
-					trackPort = Integer.parseInt(parts[1]);
-
+					//String tracker = file.readLine();
+					parts = tracker.split(":");
+					tmpIP = parts[0];
+					tmpPort = Integer.parseInt(parts[1]);
 					
-					Socket sock = new Socket(trackIP, trackPort);
+					parts = tracker.split(":");
+
+					Socket sock = new Socket(tmpIP, tmpPort);
 					BufferedReader sockIn = new BufferedReader(new InputStreamReader(sock.getInputStream()));
 					BufferedWriter sockOut = new BufferedWriter(new OutputStreamWriter(sock.getOutputStream()));
 					
-					
-					sockOut.write("pop -1");
+					sockOut.write("pop -1\n\n");
 					sockOut.flush();
-
 					// Expected response: success ID pop
 
-
-					int pop = Integer.parseInt(sockIn.readLine().split(" ")[2]);
-					System.out.println(pop);
+					String reply = sockIn.readLine();
+					int pop = Integer.parseInt(reply.split(" ")[2]);
 					
 					
 					sock.close();
 					
 					if(pop < min) {
-						lowestIP = trackIP;
-						lowestPort = trackPort;
+						min = pop;
+						lowestIP = tmpIP;
+						lowestPort = tmpPort;
 					}
 				} catch (Exception e) {
 					System.out.println("Tracker " + trackIP + " Unavailable");
@@ -141,12 +143,12 @@ public class Client {
 					// This tracker is just not available so I want to just breeze past this.					
 				}
 			} 
-			*/
 			
-		//	trackIP = lowestIP;
-		//	trackPort = lowestPort;
 			
-			//file.close();
+			trackIP = lowestIP;
+			trackPort = lowestPort;
+			
+			file.close();
 			
 		} catch (FileNotFoundException e1) {
 			// TODO Auto-generated catch block
