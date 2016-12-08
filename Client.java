@@ -202,7 +202,6 @@ public class Client {
 					changeTracker(parts[3]);
 					joinChannel(channel);
 				} else {
-					System.out.println("false");
 					joined(channel);
 					initGroup(parts[3]);
 				}
