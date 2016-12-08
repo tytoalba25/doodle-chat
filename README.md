@@ -23,8 +23,9 @@ To run the Tracker, use:
 Where <port> is where which port any clients should use to communicate with the Tracker (suggested 5555)
 
 To run the Client, use:
-	java Client <tracker-address>
-Where <tracker-address> is the address where the Client should find the Tracker in the form <ip>:<port>
+	java Client <trackers.torChat address>
+Where <trackers.torChat address> is the directory where the .torChat file is found.
+<trackers.torChat address> can be excluded and it will use the default location.
 
 =====
 Usage
