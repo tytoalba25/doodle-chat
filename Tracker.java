@@ -7,6 +7,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.Scanner;
+import java.util.Arrays;
 
 import java.net.UnknownHostException;
 import java.net.ServerSocket;
@@ -28,7 +29,7 @@ public class Tracker implements Runnable {
 	static Directory dir;
 
 	// Our directory of trackers
-	static String[] addressList;
+	static ArrayList<String> addressList;
 
 	// Timers
 	static Map<Integer, Future<?>> timers;
@@ -75,16 +76,25 @@ public class Tracker implements Runnable {
 		timers = new Hashtable<Integer, Future<?>>();
 
 		// Asks user for a list of Tracker addresses
+		String[] tempArray;
 		Scanner scanner = new Scanner(System.in);
 		System.out.println("Enter a comma sperated list of tracker addresses (empty for none)");
 		String scannerInput = scanner.nextLine();
 		if (scannerInput.equals("")) {
 			addressList = null;
 		} else {
-			addressList = scannerInput.split(",");
+			tempArray = scannerInput.split(",");
+			addressList = new ArrayList<String>(Arrays.asList(tempArray));
 		}
 		scanner.close();
 
+		// Connects to listed trackers
+	/*	if (addressList != null) {
+			String[] tempArray1 = new String[addressList.size()];
+			tempArray1 = addressList.toArray(tempArray1);
+			rMulticast(tempArray1, 5555, "new-tracker -1");
+		}
+*/
 		// Trys to load tracker_copy.xml
 		File f = new File("tracker_copy.xml");
 		if (f.exists() && !f.isDirectory()) {
@@ -350,9 +360,15 @@ public class Tracker implements Runnable {
 					System.out.println("\tProcessing register request");
 					output = Integer.toString(giveID());
 				// If not a register request then make sure that id is valid
-				} else if (!validID(Integer.parseInt(parts[1]))) {
-					output = "failure";
-					input = "";
+				//} else if (!validID(Integer.parseInt(parts[1]))) {
+				//	output = "failure";
+				//	input = "";
+				}
+
+				// Process a population request
+				if (input.startsWith("pop")) {
+					System.out.println("\tProcessing pop request");
+					output = "success " + parts[1] + " " + dir.getPop();				
 				}
 
 				// Process a get request
@@ -366,14 +382,18 @@ public class Tracker implements Runnable {
 					System.out.println("\tProcessing create request");
 					boolean duplicateFlag = false;
 					System.out.println("Checking other tracker's for channel " + parts[2]);
-					String[] resp = rMulticast(addressList, 5555, "exists 0 " + parts[2]);
+					if (addressList != null) {
+						String[] tempArray = new String[addressList.size()];
+						tempArray = addressList.toArray(tempArray);
+						String[] resp = rMulticast(tempArray, 5555, "exists 0 " + parts[2]);
 
-					if (resp != null) {
-						for (int i=0; i<resp.length; i++) {
-							System.out.println("\t\t" + resp[i]);
-							if (resp[i].split(" ")[2].equals("success")) {
-								System.out.println("\t" + addressList[i]);
-								duplicateFlag = true;
+						if (resp != null) {
+							for (int i=0; i<resp.length; i++) {
+								System.out.println("\t\t" + resp[i]);
+								if (resp[i].split(" ")[2].equals("success")) {
+									System.out.println("\t" + tempArray[i]);
+									duplicateFlag = true;
+								}
 							}
 						}
 					}
@@ -392,25 +412,32 @@ public class Tracker implements Runnable {
 				if (input.startsWith("join")) {
 					System.out.println("\tProcessing join request");
 					boolean duplicateFlag1 = false;
-
-					System.out.println("Checking other tracker's for channel " + parts[2]);
-					String[] resp = rMulticast(addressList, 5555, "exists 0 " + parts[2]);
-
 					int index = 0;
+					String[] tempArray = null;
+					
+					if (addressList != null) {
+						tempArray = new String[addressList.size()];
+						tempArray = addressList.toArray(tempArray);
 
-					if (resp != null) {
-						for (int i=0; i<resp.length; i++) {
-							System.out.println("\t\t" + resp[i]);
-							if (resp[i].split(" ")[2].equals("success")) {
-								System.out.println("\t" + addressList[i]);
-								duplicateFlag1 = true;
-								index = i;
+						System.out.println("Checking other tracker's for channel " + parts[2]);
+						String[] resp = rMulticast(tempArray, 5555, "exists 0 " + parts[2]);
+
+						
+
+						if (resp != null) {
+							for (int i=0; i<resp.length; i++) {
+								System.out.println("\t\t" + resp[i]);
+								if (resp[i].split(" ")[2].equals("success")) {
+									System.out.println("\t" + tempArray[i]);
+									duplicateFlag1 = true;
+									index = i;
+								}
 							}
 						}
 					}
 								
 					if (duplicateFlag1 == true) {
-						output = "success " + Integer.parseInt(parts[1]) + " true " + addressList[index] + ":5555";
+						output = "success " + Integer.parseInt(parts[1]) + " true " + tempArray[index] + ":5555";
 						System.out.println("=====\n" + output + "=====\n");
 					} else if (dir.joinChannel(parts[2], parts[3],
 							csocket.getRemoteSocketAddress().toString().substring(1).split(":")[0],
@@ -418,6 +445,7 @@ public class Tracker implements Runnable {
 						output = "failure";
 					} else {
 						output = "success ";
+						output += parts[1] + " false ";
 						output += dir.getMembers(parts[2]);
 						output += "";
 						updateMembers(parts[2]);
@@ -458,12 +486,16 @@ public class Tracker implements Runnable {
 						output = "exists-response 0 failure";
 					}
 				}
-
-				// Process an exists response
-				if (input.startsWith("exists-response")) {
-					System.out.println("\tProcessing exsits response");
-
+				
+				// Process a new-tracker request
+				if (input.startsWith("new-tracker")) {
+					System.out.println("Processing new-tracker request");
 					
+					System.out.println(csocket.getRemoteSocketAddress().toString().substring(1).split(":")[0]);
+
+					addressList.add(csocket.getRemoteSocketAddress().toString().substring(1).split(":")[0]);
+
+					output = "success";
 				}
 
 

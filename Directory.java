@@ -20,6 +20,10 @@ public class Directory {
 		channels = new ArrayList<Channel>();
 	}
 
+	public int getPop() {
+		return channels.size();
+	}
+
 	// Checks if a channel exists in the directory
 	public Channel channelExists(String n) {
 		for (int i = 0; i < channels.size(); i++) {
