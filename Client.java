@@ -83,6 +83,10 @@ public class Client {
 	
 	// Create connections and resources, catch any issues
 	private static void init(String[] args) {
+		int min = Integer.MAX_VALUE;
+		String lowestIP = "";
+		int lowestPort = -1;
+		
 		String dir;
 		
 		if(args.length != 1) {
@@ -92,15 +96,35 @@ public class Client {
 		}
 		
 		try {
+			
+			// I am so sorry about this block. It is probably some of the ugliest stuff I've ever done.
+			
 			BufferedReader file = new BufferedReader (new FileReader(new File (dir)));
-			String tracker = file.readLine();
+			//String tracker = file.readLine();
+			String tracker;
+			while((tracker = file.readLine()) != null) {
+				String[] parts = tracker.split(":");
+				
+				trackIP = parts[0];
+				trackPort = Integer.parseInt(parts[1]);
+				
+				openSocket();
+				sockOut.write("pop -1");
+				sockOut.flush();
+				
+				// Expected response: success ID pop
+				
+				
+				int pop = Integer.parseInt(sockIn.readLine().split(" ")[2]);
+
+				if(pop < min) {
+					lowestIP = trackIP;
+					lowestPort = trackPort;
+				}
+			}
 			
-			String[] parts = tracker.split(":");
-			
-			trackIP = parts[0];
-			trackPort = Integer.parseInt(parts[1]);
-			
-			System.out.println(trackIP + " : " + trackPort);
+			trackIP = lowestIP;
+			trackPort = lowestPort;
 			
 			file.close();
 			
@@ -200,7 +224,7 @@ public class Client {
 				
 				if(parts[2].equals("true")) {
 					changeTracker(parts[3]);
-					joinChannel(channel);
+					return joinChannel(channel);
 				} else {
 					joined(channel);
 					initGroup(parts[3]);
