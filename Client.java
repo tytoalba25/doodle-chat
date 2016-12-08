@@ -28,6 +28,7 @@ public class Client {
 	static int ID = -1;
 	static String channelName = "";
 	static PeerGroup group;
+	static Boolean verbose = false;
 	
 	public static void main(String args[]) {
 		Scanner in = new Scanner(System.in);
@@ -89,10 +90,16 @@ public class Client {
 		
 		String dir;
 		
-		if(args.length != 1) {
+		
+		
+		if(args.length == 2 && args[0].equals("-v")) {
+			verbose = true;
+			dir = args[1];
+		} else if (args.length == 1 && args[0].equals("-v")) {
+			verbose = true;
 			dir = "trackers.torChat";
 		} else {
-			dir = args[1];
+			dir = args[0];
 		}
 		
 		try {
