@@ -9,6 +9,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.Scanner;
 import java.util.Arrays;
 
+import java.lang.String;
+
 import java.net.UnknownHostException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -152,9 +154,8 @@ public class Tracker implements Runnable {
 			
 
 	// Produce a new ID
-	public int giveID() {
-		id += 1;
-		return id - 1;
+	public int giveID(String val) {
+		return val.hashCode();
 	}
 
 	// Make sure that the ID given is registered
@@ -356,11 +357,7 @@ public class Tracker implements Runnable {
 				// Process a register request
 				if (input.startsWith("register")) {
 					System.out.println("\tProcessing register request");
-					output = Integer.toString(giveID());
-								// If not a register request then make sure that id is valid
-								//} else if (!validID(Integer.parseInt(parts[1]))) {
-								//	output = "failure";
-								//	input = "";
+					output = Integer.toString(giveID(csocket.getRemoteSocketAddress().toString().substring(1).split(":")[0]));
 				}
 
 				// Process a population request
