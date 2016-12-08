@@ -207,7 +207,7 @@ public class Client {
 					initGroup(parts[3]);
 				}
 			} else {
-				System.out.println("Fail: " + reply);
+				System.out.println(reply);
 				return null;
 			}
 			
