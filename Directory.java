@@ -1,12 +1,16 @@
 import java.util.ArrayList;
 
+import java.io.UnsupportedEncodingException;
+import java.io.IOException;
+import java.io.File;
+
 import org.w3c.dom.*;
+
 import javax.xml.parsers.*;
-import java.io.*;
-import org.xml.sax.SAXException;
 import javax.xml.transform.*;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+import org.xml.sax.SAXException;
 
 public class Directory {
 

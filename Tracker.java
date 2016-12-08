@@ -6,7 +6,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.io.IOException;
+
 import java.net.UnknownHostException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -17,8 +17,10 @@ import java.net.DatagramSocket;
 import java.io.PrintStream;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.io.*;
+import java.io.IOException;
+import java.io.File;
 
+// Main Tracker Class
 public class Tracker implements Runnable {
 
 	// Our static shared directory of channels
@@ -45,6 +47,7 @@ public class Tracker implements Runnable {
 	// Main function
 	// This sets up the directory and starts listening for connections
 	public static void main(String args[]) throws Exception {
+
 		// Check arguments
 		if (args.length != 1) {
 			System.out.println("Usage:\n\t java Tracker <port>");
@@ -58,7 +61,7 @@ public class Tracker implements Runnable {
 			System.exit(1);
 		}
 		
-		// Display the ip that should be used to connect to the tracker
+		// Display the address that should be used to connect to the tracker
 		System.out.println("In order to connect to the tracker, use:\n\tAddress: " + InetAddress.getLocalHost()
 				+ "\n\tPort: " + port);
 
@@ -78,8 +81,7 @@ public class Tracker implements Runnable {
 		// Set up our identifier
 		id = 1;
 
-		// Open a server socket, listen for connections and create threads for
-		// them
+		// Open a server socket, listen for connections and create threads for them
 		ServerSocket ssock = new ServerSocket(port);
 		while (true) {
 			Socket sock = ssock.accept();
@@ -147,6 +149,7 @@ public class Tracker implements Runnable {
 		return 1;
 	}
 
+	//
 	public int pingMember(final String n, final int memberID) {
 		synchronized (timers) {
 			if (timers.containsKey(memberID))
@@ -208,6 +211,7 @@ public class Tracker implements Runnable {
 		return 1;
 	}
 
+	// 
 	@SuppressWarnings("resource")
 	public int processPing(int ID, String n) {
 		System.out.println("KEEP-ALIVE MEMBER #" + ID);
@@ -264,6 +268,10 @@ public class Tracker implements Runnable {
 	}
 
 	// This is the thread called when a client connects to the Tracker
+	// It reads the message from the input and splits it around any spaces into parts
+	// The first part is the request
+	// The second part is the sender's id
+	// Any remaining parts are additional info needed for the request
 	public void run() {
 
 		try {
@@ -281,8 +289,7 @@ public class Tracker implements Runnable {
 			// Split message by space
 			String[] parts = input.split("\\s+");
 
-			// If any errors occur (most likely nullpointer) assume malformed
-			// request
+			// If any errors occur (most likely nullpointer) assume malformed request
 			try {
 
 				// Process a register request
