@@ -16,12 +16,12 @@ public class TimeoutTimer extends TimerTask{
 	int ID;
 	String channelName;
 	
-	// The peer to contact when first run
+	// Peer Info
 	String peerIP;
 	int peerPort;
 	
 	
-	// The tracker to contact if the peer fails to respond
+	// Tracker Info
 	String trackerIP;
 	int trackerPort;
 	
@@ -41,16 +41,16 @@ public class TimeoutTimer extends TimerTask{
 	
 	public void run() {
 		sendP2PRequest();
-		// If the peer replies it will interrupt the thread and remake the timer
 		try {
 			Thread.sleep(1000);;
 			sendTrackRequest();
 		} catch (InterruptedException e) {
-			//System.out.println("\t\t\tDEBUG: Peer " + ID + " replied, keeping alive.");
+			System.out.println("\t\t\tDEBUG: Peer " + ID + " replied, keeping alive.");
 		}
 	}
 	
 	// Sends a ping-request to the tracker.
+	// TODO: Request a ping from the client first
 	private void sendTrackRequest() {		
 		try {
 			Socket sock = new Socket(trackerIP, trackerPort);
@@ -65,7 +65,6 @@ public class TimeoutTimer extends TimerTask{
 		} 
 	}
 	
-	// Sends a ping request to the client. Uses ID 0 to mimic the tracker and thereby have access to special-case messages
 	private void sendP2PRequest() {
 		// Send request via 0~
 		try {
@@ -83,8 +82,6 @@ public class TimeoutTimer extends TimerTask{
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			
-			sock.close();
 			
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block

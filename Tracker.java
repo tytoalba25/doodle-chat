@@ -1,9 +1,12 @@
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.TimerTask;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.Scanner;
 
 import java.net.UnknownHostException;
 import java.net.ServerSocket;
@@ -24,12 +27,14 @@ public class Tracker implements Runnable {
 	// Our static shared directory of channels
 	static Directory dir;
 
+	// Our directory of trackers
+	static String[] addressList;
+
 	// Timers
 	static Map<Integer, Future<?>> timers;
 	static ScheduledThreadPoolExecutor pool;
 	static final int MAX_TIMERS = 50;
 	static final int PING_INTERVAL = 2;
-	static Boolean running = true;
 
 	// ID counter
 	static int id;
@@ -39,7 +44,7 @@ public class Tracker implements Runnable {
 
 	// Constructor
 	Tracker(Socket csocket, Directory dir) {
-		Tracker.dir = dir;
+		this.dir = dir;
 		this.csocket = csocket;
 	}
 
@@ -69,6 +74,17 @@ public class Tracker implements Runnable {
 		pool = new ScheduledThreadPoolExecutor(MAX_TIMERS);
 		timers = new Hashtable<Integer, Future<?>>();
 
+		// Asks user for a list of Tracker addresses
+		Scanner scanner = new Scanner(System.in);
+		System.out.println("Enter a comma sperated list of tracker addresses (empty for none)");
+		String scannerInput = scanner.nextLine();
+		if (scannerInput.equals("")) {
+			addressList = null;
+		} else {
+			addressList = scannerInput.split(",");
+		}
+		scanner.close();
+
 		// Trys to load tracker_copy.xml
 		File f = new File("tracker_copy.xml");
 		if (f.exists() && !f.isDirectory()) {
@@ -82,13 +98,50 @@ public class Tracker implements Runnable {
 
 		// Open a server socket, listen for connections and create threads for them
 		ServerSocket ssock = new ServerSocket(port);
-		while (running) {
+		while (true) {
 			Socket sock = ssock.accept();
 			new Thread(new Tracker(sock, dir)).start();
 			dir.saveTracker("tracker_copy.xml");
 		}
-		ssock.close();
 	}
+
+	// Sends a message over TCP to a series of addresses
+	// Returns a list of all of the responses
+	public static String[] rMulticast(String[] addresses, int port, String message) {
+		Socket sock;
+		PrintStream out;
+		BufferedReader in;
+
+		if (addresses == null) {
+			return null;
+		}
+
+		String[] response = new String[addresses.length];
+		for (int i=0; i<addresses.length; i++) {
+			try {
+				sock = new Socket(addresses[i], port);
+				out = new PrintStream(sock.getOutputStream());
+				in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
+				out.println(message);
+				out.flush();
+				response[i] = in.readLine();
+				out.close();
+				in.close();
+				sock.close();
+
+				System.out.println("\t\t DEBUG: Message sent to " + addresses[i]);
+
+			} catch (UnknownHostException e) {
+				System.out.println(addresses[i] + " not reached");
+			} catch (IOException e) {
+				System.out.println(e);
+				System.out.println(addresses[i] + " not reached");
+			}
+		}
+
+		return response;
+	}
+			
 
 	// Produce a new ID
 	public int giveID() {
@@ -107,7 +160,6 @@ public class Tracker implements Runnable {
 
 	// Send a message to update the members of a channel when a change in
 	// membership occurs
-	@SuppressWarnings("resource")
 	public int updateMembers(String n) {
 		System.out.println("Sending update to members of " + n);
 		Channel c = dir.channelExists(n);
@@ -130,6 +182,7 @@ public class Tracker implements Runnable {
 
 			InetAddress ip;
 			int port;
+			int id;
 			DatagramPacket packet;
 			for (int i = 0; i < c.getPopulation(); i++) {
 				try {
@@ -296,7 +349,7 @@ public class Tracker implements Runnable {
 				if (input.startsWith("register")) {
 					System.out.println("\tProcessing register request");
 					output = Integer.toString(giveID());
-					// If not a register request then make sure that id is valid
+				// If not a register request then make sure that id is valid
 				} else if (!validID(Integer.parseInt(parts[1]))) {
 					output = "failure";
 					input = "";
@@ -311,24 +364,60 @@ public class Tracker implements Runnable {
 				// Process a create request
 				if (input.startsWith("create")) {
 					System.out.println("\tProcessing create request");
-					if (dir.addChannel(parts[2]) != 1) {
-						output = "failure";
+					boolean duplicateFlag = false;
+					System.out.println("Checking other tracker's for channel " + parts[2]);
+					String[] resp = rMulticast(addressList, 5555, "exists 0 " + parts[2]);
+
+					if (resp != null) {
+						for (int i=0; i<resp.length; i++) {
+							System.out.println("\t\t" + resp[i]);
+							if (resp[i].split(" ")[2].equals("success")) {
+								System.out.println("\t" + addressList[i]);
+								duplicateFlag = true;
+							}
+						}
+					}
+					if (duplicateFlag == false) {
+						if (dir.addChannel(parts[2]) != 1) {
+							output = "failure";
+						} else {
+							output = "success";
+						}
 					} else {
-						output = "success";
+						output = "failure";
 					}
 				}
 
 				// Process a join request
 				if (input.startsWith("join")) {
 					System.out.println("\tProcessing join request");
-					// Channel Name, IP, ID
-					if (dir.joinChannel(parts[2], parts[3],
+					boolean duplicateFlag1 = false;
+
+					System.out.println("Checking other tracker's for channel " + parts[2]);
+					String[] resp = rMulticast(addressList, 5555, "exists 0 " + parts[2]);
+
+					int index = 0;
+
+					if (resp != null) {
+						for (int i=0; i<resp.length; i++) {
+							System.out.println("\t\t" + resp[i]);
+							if (resp[i].split(" ")[2].equals("success")) {
+								System.out.println("\t" + addressList[i]);
+								duplicateFlag1 = true;
+								index = i;
+							}
+						}
+					}
+								
+					if (duplicateFlag1 == true) {
+						output = "success " + Integer.parseInt(parts[1]) + " true " + addressList[index] + ":5555";
+						System.out.println("=====\n" + output + "=====\n");
+					} else if (dir.joinChannel(parts[2], parts[3],
 							csocket.getRemoteSocketAddress().toString().substring(1).split(":")[0],
 							Integer.parseInt(parts[1])) != 1) {
 						output = "failure";
 					} else {
-						output = "success " + parts[1] + " ";
-						output += "false "; // Reroute flag
+						output = "success ";
 						output += dir.getMembers(parts[2]);
 						output += "";
 						updateMembers(parts[2]);
@@ -355,6 +444,28 @@ public class Tracker implements Runnable {
 				if (input.startsWith("ping")) {
 					processPing(Integer.parseInt(parts[1]), parts[2]);
 				}
+
+				// Process an exists request
+				if (input.startsWith("exists")) {
+					System.out.println("\tProcessing exists request");
+
+					String[] tIP = new String[1];
+					tIP[0] = csocket.getRemoteSocketAddress().toString().substring(1).split(":")[0];
+
+					if (dir.channelExists(parts[2]) != null) {
+						output = "exists-response 0 success";
+					} else {
+						output = "exists-response 0 failure";
+					}
+				}
+
+				// Process an exists response
+				if (input.startsWith("exists-response")) {
+					System.out.println("\tProcessing exsits response");
+
+					
+				}
+
 
 			} catch (Exception e) {
 				System.out.println(e);

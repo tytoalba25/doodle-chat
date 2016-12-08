@@ -37,7 +37,6 @@ public class PeerGroup implements Iterable<Entry<Integer, Peer>>{
 		peer.startTimer();
 	}
 	
-	// Parses through the string the Tracker returns and creates a new Peer for all the entries in that list
 	public void addAll(String members) {
 		if(members.length() > 0) {
 			try {
