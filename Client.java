@@ -83,6 +83,10 @@ public class Client {
 	
 	// Create connections and resources, catch any issues
 	private static void init(String[] args) {
+		int min = Integer.MAX_VALUE;
+		String lowestIP = "";
+		int lowestPort = -1;
+		
 		String dir;
 		
 		if(args.length != 1) {
@@ -92,18 +96,57 @@ public class Client {
 		}
 		
 		try {
-			// TODO: Introduce some sort of random selection of trackers
+			
+			// I am so sorry about this block. It is probably some of the ugliest stuff I've ever done.
+			
 			BufferedReader file = new BufferedReader (new FileReader(new File (dir)));
+			//String tracker = file.readLine();
 			String tracker = file.readLine();
-			
 			String[] parts = tracker.split(":");
-			
 			trackIP = parts[0];
 			trackPort = Integer.parseInt(parts[1]);
+			/*
+			 * while((tracker = file.readLine()) != null) {
+				try {
+					String[] parts = tracker.split(":");
+
+					trackIP = parts[0];
+					trackPort = Integer.parseInt(parts[1]);
+
+					
+					Socket sock = new Socket(trackIP, trackPort);
+					BufferedReader sockIn = new BufferedReader(new InputStreamReader(sock.getInputStream()));
+					BufferedWriter sockOut = new BufferedWriter(new OutputStreamWriter(sock.getOutputStream()));
+					
+					
+					sockOut.write("pop -1");
+					sockOut.flush();
+
+					// Expected response: success ID pop
+
+
+					int pop = Integer.parseInt(sockIn.readLine().split(" ")[2]);
+					System.out.println(pop);
+					
+					
+					sock.close();
+					
+					if(pop < min) {
+						lowestIP = trackIP;
+						lowestPort = trackPort;
+					}
+				} catch (Exception e) {
+					System.out.println("Tracker " + trackIP + " Unavailable");
+					// I'm so sorry
+					// This tracker is just not available so I want to just breeze past this.					
+				}
+			} 
+			*/
 			
-			System.out.println(trackIP + " : " + trackPort);
+		//	trackIP = lowestIP;
+		//	trackPort = lowestPort;
 			
-			file.close();
+			//file.close();
 			
 		} catch (FileNotFoundException e1) {
 			// TODO Auto-generated catch block
