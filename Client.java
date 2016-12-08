@@ -1,5 +1,8 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -29,8 +32,12 @@ public class Client {
 	public static void main(String args[]) {
 		Scanner in = new Scanner(System.in);
 		MulticastSocket ms = null;
-		init(in, args);
+		init(args);		
 		register();
+		
+		System.out.println("Enter display-name");
+		displayName = in.nextLine();
+		
 		while (!joined) {
 			System.out.println("What would you like to do " + displayName + "? ( list | create -channelName- | join -channelName- | quit)");
 			String input = in.nextLine();
@@ -75,29 +82,38 @@ public class Client {
 	}
 	
 	// Create connections and resources, catch any issues
-	private static void init(Scanner in, String args[]) {
+	private static void init(String[] args) {
+		String dir;
 		
-		String tracker = "";
-		
-		if(args.length < 1) {
-			System.out.println("No args");
-			System.out.println("Please enter tracker IP:Port");
-			tracker = in.nextLine();
-			
+		if(args.length != 1) {
+			dir = "trackers.torChat";
 		} else {
-			tracker = args[0];
+			dir = args[1];
 		}
-		String[] parts = tracker.split(":");
+		
 		try {
+			BufferedReader file = new BufferedReader (new FileReader(new File (dir)));
+			String tracker = file.readLine();
+			
+			String[] parts = tracker.split(":");
+			
 			trackIP = parts[0];
 			trackPort = Integer.parseInt(parts[1]);
+			
+			System.out.println(trackIP + " : " + trackPort);
+			
+			file.close();
+			
+		} catch (FileNotFoundException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
 		} catch (NumberFormatException e) {
 			e.printStackTrace();
 			System.exit(2);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
-		
-		System.out.println("Enter display-name");
-		displayName = in.nextLine();
 	}
 	
 	private static void openSocket() {
@@ -120,7 +136,7 @@ public class Client {
 		}
 	}
 	
-	//TODO: Connects to server to acquire channel list and outputs to console
+	// Connects to server to acquire channel list and outputs to console
 	private static String listChannels() {
 		try {
 			openSocket();
@@ -139,56 +155,32 @@ public class Client {
 		return null;
 	}
 	
-	//TODO: Creates and joins a channel
+	// Creates and joins a channel
 	private static MulticastSocket createChannel(String channel) {
 		MulticastSocket ms = null;
-		
-		if(!channelExists(channel)) {
-			openSocket();
-			try {
-				sockOut.write("create " + ID + " " + channel + "\n\n");
-				sockOut.flush();
 
-				String reply = sockIn.readLine();
-				if(reply.equals("success")) {
-					ms = joinCreatedChannel(channel);
-				} else {
-					System.out.println(reply);
-				}
-				
-			} catch (IOException e) {
-				System.out.println("Creation failed.");
-				e.printStackTrace();
-				System.exit(3);
-			}
-			cleanUp();
-		}
-		
-		return ms;
-	}
-	
-	
-	private static MulticastSocket joinCreatedChannel(String channel) {
 		openSocket();
-		
-		MulticastSocket ms = createMS();
 		try {
-			sockOut.write("join " + ID  + " " + channel + " " + ms.getLocalPort() + "\n\n");
+			sockOut.write("create " + ID + " " + channel + "\n\n");
 			sockOut.flush();
-			
-			joined(channel);
-			
-			initGroup(sock.getLocalAddress().toString().substring(1) + ":" + ms.getLocalPort() + "/" + ID);
+
+			String reply = sockIn.readLine();
+			String[] parts = reply.split(" ");
+			if(parts[0].equals("success")) {
+				
+				ms = joinChannel(channel);
+			} else {
+				System.out.println(reply);
+				return null;
+			}
 
 		} catch (IOException e) {
-			System.out.println(e.getMessage());
-			//e.printStackTrace();
+			System.out.println("Creation failed.");
+			e.printStackTrace();
 			System.exit(3);
 		}
-
-		// Get list of people
-		// Convert to InetAddress
 		cleanUp();
+		
 		return ms;
 	}
 	
@@ -196,32 +188,47 @@ public class Client {
 	//TODO: Connects to pre-existing channel
 	private static MulticastSocket joinChannel(String channel) {
 		MulticastSocket ms = createMS();
-		
-		if(channelExists(channel)) {
-			openSocket();
-			try {
-				sockOut.write("join " + ID  + " " + channel + " " + ms.getLocalPort() + "\n\n");
-				sockOut.flush();
+		openSocket();
+		try {
+			sockOut.write("join " + ID  + " " + channel + " " + ms.getLocalPort() + "\n\n");
+			sockOut.flush();
+
+			String reply = sockIn.readLine();
+			System.out.println(reply);
+			String[] parts = reply.split(" ");
+			if(parts[0].equals("success")) {
 				
-				joined(channel);
-				
-				String s = sockIn.readLine();
-				s = s.split("\\s+")[1];
-				initGroup(s);
-				
-			} catch (IOException e) {
-				System.out.println(e.getMessage());
-				//e.printStackTrace();
-				System.exit(3);
+				if(parts[2].equals("true")) {
+					changeTracker(parts[3]);
+					joinChannel(channel);
+				} else {
+					System.out.println("false");
+					joined(channel);
+					initGroup(parts[3]);
+				}
+			} else {
+				System.out.println("Fail: " + reply);
+				return null;
 			}
 			
-			// Get list of people
-			// Convert to InetAddress
-			
-			cleanUp();
+
+		} catch (IOException e) {
+			System.out.println(e.getMessage());
+			//e.printStackTrace();
+			System.exit(3);
 		}
-		
+
+		cleanUp();
+
 		return ms;
+	}
+	
+	// Re-assigns the tracker information
+	// Only called on a join request where the current tracker doesn't host the room
+	private static void changeTracker(String addr) {
+		String[] parts = addr.split(":");
+		trackIP = parts[0];
+		trackPort = Integer.parseInt(parts[1].trim());
 	}
 
 	private static MulticastSocket createMS() {
@@ -248,6 +255,7 @@ public class Client {
 				sockOut.flush();
 				
 				String sID = sockIn.readLine();
+				
 				System.out.println("Your ID is: " + sID + "\n");
 				ID = Integer.parseInt(sID);
 				
@@ -283,41 +291,15 @@ public class Client {
 		}
 	}
 	
-	// TODO: Checks if the channel you are attempting to join or create already exists
-	private static Boolean channelExists(String channel) {
-		
-		String channelList = listChannels();
-		//System.out.println(channelList);
-		String[] channels = channelList.split(",");
-		
-		for(int i = 0; i < channels.length; i++) {
-			if(channel.equals(channels[i]))
-				return true;
-		}
-		
-		
-		return false;
-	}
 	
 	// Listens for user input and sends messages
 	private static void chatLoop(Scanner in, MulticastSocket listen) {
-		
-		// Toggles behavior between multicast and P2PUDP
-		boolean MC = false;
-		
 		try {
 
-		//	groupMask = InetAddress.getByName("225.4.5.6");
-			
-			Thread receiver;
-			// TODO: Remove if/else once multicast is functional
-		/*	if(MC) {
-				receiver = new Thread(new MulticastReceiver(IP, groupMask));
-				receiver.start();				
-			} else {
-		*/		receiver = new Thread(new MulticastReceiver(trackIP, trackPort, group, listen, ID));
-				receiver.start();
-		//	}
+		
+			Thread receiver = new Thread(new MulticastReceiver(trackIP, trackPort, group, listen, ID));
+			receiver.start();
+		
 			
 			
 			MulticastSocket sock = new MulticastSocket();
@@ -325,23 +307,17 @@ public class Client {
 			Boolean chatting = true;
 			String message = "";
 			
-			// TODO: Remove if/else once multicast is functional
-			if(MC) {
-//				multicast(sock, displayName + " has left the chat."); 
-			} else  {
-				P2PUDP(sock, displayName + " has joined the chat."); 
-			}
+			
+			bMulticast(sock, displayName + " has joined the chat."); 
+			
 			
 			while(chatting) {
 				message = in.nextLine();
 				if(message.equals("/quit")) {
 					try {
-						// TODO: Remove if/else once multicast is functional
-						if(MC) {
-//							multicast(sock, displayName + " has left the chat."); 
-						} else  {
-							P2PUDP(sock, displayName + " has left the chat."); 
-						}
+						
+						bMulticast(sock, displayName + " has left the chat."); 
+						
 						
 						openSocket();
 						sockOut.write("leave " + ID + " " + channelName + "\n\n");
@@ -352,13 +328,8 @@ public class Client {
 						e.printStackTrace();
 					}
 					break;
-				} else {	
-					// TODO: Remove if/else once multicast is functional
-					if(MC) {
-//						multicast(sock, (displayName + ": " + message));
-					} else  {
-						P2PUDP(sock, (displayName + ": " + message));
-					}
+				} else {
+					bMulticast(sock, (displayName + ": " + message));
 				}
 			}
 
@@ -374,7 +345,7 @@ public class Client {
 	}
 	
 	// Sends out a UDP message to each peer one at a time
-	private static synchronized void P2PUDP(DatagramSocket sock, String plainText) {
+	private static synchronized void bMulticast(DatagramSocket sock, String plainText) {
 		//System.out.println(message);
 		
 		String message = ID + "~" + plainText;
@@ -393,19 +364,4 @@ public class Client {
 			}
 		}
 	}
-/*	
-	// TODO: Fix this
-	// Sends a multicast message to group.
-	private static synchronized void multicast(MulticastSocket sock, String message) {
-		byte[] buffer = message.getBytes();
-		DatagramPacket packet = new DatagramPacket(buffer, buffer.length, groupMask, 5556);
-		try {
-			sock.send(packet);
-			System.out.println("Sent packet with message: " + message);
-		} catch (IOException e) {
-			
-			e.printStackTrace();
-		}
-	}
-*/	
 }

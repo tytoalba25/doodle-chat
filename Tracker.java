@@ -1,9 +1,7 @@
-import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.TimerTask;
 import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -31,6 +29,7 @@ public class Tracker implements Runnable {
 	static ScheduledThreadPoolExecutor pool;
 	static final int MAX_TIMERS = 50;
 	static final int PING_INTERVAL = 2;
+	static Boolean running = true;
 
 	// ID counter
 	static int id;
@@ -40,7 +39,7 @@ public class Tracker implements Runnable {
 
 	// Constructor
 	Tracker(Socket csocket, Directory dir) {
-		this.dir = dir;
+		Tracker.dir = dir;
 		this.csocket = csocket;
 	}
 
@@ -83,11 +82,12 @@ public class Tracker implements Runnable {
 
 		// Open a server socket, listen for connections and create threads for them
 		ServerSocket ssock = new ServerSocket(port);
-		while (true) {
+		while (running) {
 			Socket sock = ssock.accept();
 			new Thread(new Tracker(sock, dir)).start();
 			dir.saveTracker("tracker_copy.xml");
 		}
+		ssock.close();
 	}
 
 	// Produce a new ID
@@ -107,6 +107,7 @@ public class Tracker implements Runnable {
 
 	// Send a message to update the members of a channel when a change in
 	// membership occurs
+	@SuppressWarnings("resource")
 	public int updateMembers(String n) {
 		System.out.println("Sending update to members of " + n);
 		Channel c = dir.channelExists(n);
@@ -129,7 +130,6 @@ public class Tracker implements Runnable {
 
 			InetAddress ip;
 			int port;
-			int id;
 			DatagramPacket packet;
 			for (int i = 0; i < c.getPopulation(); i++) {
 				try {
@@ -327,7 +327,8 @@ public class Tracker implements Runnable {
 							Integer.parseInt(parts[1])) != 1) {
 						output = "failure";
 					} else {
-						output = "success ";
+						output = "success " + parts[1] + " ";
+						output += "false "; // Reroute flag
 						output += dir.getMembers(parts[2]);
 						output += "";
 						updateMembers(parts[2]);
