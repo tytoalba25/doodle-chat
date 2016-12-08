@@ -8,6 +8,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.Scanner;
 import java.util.Arrays;
+import java.util.Timer;
 
 import java.lang.String;
 
@@ -23,6 +24,11 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.File;
+import java.io.PrintWriter;
+
+import static java.lang.System.out;
+import static java.nio.file.Files.readAllBytes;
+import static java.nio.file.Paths.get;
 
 // Main Tracker Class
 public class Tracker implements Runnable {
@@ -108,6 +114,20 @@ public class Tracker implements Runnable {
 
 		// Open a server socket, listen for connections and create threads for them
 		ServerSocket ssock = new ServerSocket(port);
+
+		// Set up periodic tracker updates
+		Timer timer = new Timer();
+		timer.schedule(new TimerTask() {
+			public void run() {
+				try {
+					String content = new String(readAllBytes(get("tracker_copy.xml")));
+					rMulticast(addressList, 5555, content);
+				} catch (IOException e) {
+					System.out.println("Unable to load tracker_copy");
+				}
+			}
+		}, 500, 5000);
+
 		while (true) {
 			Socket sock = ssock.accept();
 			new Thread(new Tracker(sock, dir)).start();
@@ -488,6 +508,19 @@ public class Tracker implements Runnable {
 
 					addressList.add(msg);
 
+					output = "success";
+				}
+
+				// Process a directory-update request
+				if (input.startsWith("<?xml")) {
+					System.out.println("Recieving update from " + csocket.getRemoteSocketAddress().toString().substring(1).split(":")[0]);
+
+					System.out.println(input);
+
+					PrintWriter fout = new PrintWriter(csocket.getRemoteSocketAddress().toString().substring(1).split(":")[0] + "_backup.xml");
+					fout.println(input);
+					fout.close();
+				
 					output = "success";
 				}
 
