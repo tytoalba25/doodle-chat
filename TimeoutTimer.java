@@ -49,8 +49,10 @@ public class TimeoutTimer extends TimerTask{
 		sendP2PRequest();
 		// If the peer replies it will interrupt the thread and remake the timer
 		try {
-			Thread.sleep(1000);;
+			Thread.sleep(1000);
+			
 			sendTrackRequest();
+					
 		} catch (InterruptedException e) {
 			if(verbose)
 				System.out.println("\t\t\tDEBUG: Peer " + ID + " replied, keeping alive.");

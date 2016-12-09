@@ -45,6 +45,7 @@ public class Tracker implements Runnable {
 	static ScheduledThreadPoolExecutor pool;
 	static final int MAX_TIMERS = 50;
 	static final int PING_INTERVAL = 2;
+	static Boolean recover = false;
 
 	// ID counter
 	static int id;
@@ -63,17 +64,16 @@ public class Tracker implements Runnable {
 	public static void main(String args[]) throws Exception {
 
 		// Check arguments
-		if (args.length != 1) {
-			System.out.println("Usage:\n\t java Tracker <port>");
-			System.exit(1);
-		}
-		int port = 0;
-		try {
-			port = Integer.parseInt(args[0]);
-		} catch (NumberFormatException e) {
-			System.out.println("Invalid port");
-			System.exit(1);
-		}
+		if (args.length == 1)  {
+			if(args[1].equals("-r")) {
+				recover = true;
+			} else {
+				System.out.println("Acceptable arguments: -r for recovery");
+			}			
+		} 
+		
+		
+		int port = 5555;
 		
 		// Display the address that should be used to connect to the tracker
 		System.out.println("In order to connect to the tracker, use:\n\tAddress: " + InetAddress.getLocalHost()
@@ -103,12 +103,24 @@ public class Tracker implements Runnable {
 		}
 
 		// Trys to load tracker_copy.xml
-		//File f = new File("tracker_copy.xml");
-		//if (f.exists() && !f.isDirectory()) {
-		//	dir.loadTracker("tracker_copy.xml");
-		//} else {
-		//	System.out.println("Unable to open tracker_copy.xml, starting blank tracker");
-		//}
+		if(recover) {
+			System.out.println("Attempting to recover from tracker_copy.xml");
+			File f = new File("tracker_copy.xml");
+			if (f.exists() && !f.isDirectory()) {
+				dir.loadTracker("tracker_copy.xml");
+			} else {
+				System.out.println("Unable to open tracker_copy.xml, starting blank tracker");
+			}
+		} else {
+			System.out.println("Starting fresh");
+			// Attempt to clear the recovery file
+			File f = new File("tracker_copy.xml");
+			if (f.exists() && !f.isDirectory()) {
+				PrintWriter writer = new PrintWriter(f);
+				writer.print("");
+				writer.close();
+			}
+		}
 
 		// Set up our identifier
 		id = 1;

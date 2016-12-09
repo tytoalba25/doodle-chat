@@ -57,6 +57,14 @@ public class PeerGroup implements Iterable<Entry<Integer, Peer>>{
 		trackIP = IP;
 	}
 	
+	public void resetTimers() {
+		if(size() > 0) {
+			for (Map.Entry<Integer, Peer> entry : map.entrySet()) {
+				entry.getValue().restartTimer();
+			}
+		}
+	}
+	
 	public String recover() {
 		// 172.19.1.23:42836/10,172.19.1.24:55519/11
 		

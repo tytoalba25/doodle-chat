@@ -124,7 +124,9 @@ public class MulticastReceiver implements Runnable {
 		String[] parts = info.split(":");
 		
 		group.setTrackIP(parts[0]);
-		group.setTrackPort(Integer.parseInt(parts[1].trim()));		
+		group.setTrackPort(Integer.parseInt(parts[1].trim()));	
+		
+		group.resetTimers();	
 	}
 
 	// Called when a tracker takes over for another
@@ -199,8 +201,13 @@ public class MulticastReceiver implements Runnable {
 			// Tracker messages have particular behavior to follow and don't need to be displayed
 			trackerMessage(parts[1], packet);
 		} else {	
-			group.getPeerByID(sender).restartTimer();
-			display(parts[1]);
+			try {
+				group.getPeerByID(sender).restartTimer();
+				display(parts[1]);
+			} catch (NullPointerException e) {
+				if(verbose)
+					e.printStackTrace();
+			}
 		}
 	}
 }
