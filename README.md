@@ -25,14 +25,14 @@ Where <port> is where which port any clients should use to communicate with the 
 Due to the formatting of XML backups, in order to run multiple trackers they must be run in seperate folders
 
 To run the Client, use:
-	java Client <-v> <tracker-address>
-Where <-v> enables verbose mode
-Where <tracker-address> is the address where the Client should find the Tracker in the form <ip>:<port>
+	java Client [v] [tracker-address]
+Where [-v] enables verbose mode
+Where [tracker-address] is the optional address where the Client should find the Tracker in the form <ip>:<port>
 
 =====
 Usage
 =====
-When the Tracker launches it will display where it can be contacted by any Clients. After this it will simply display any connections and its request/response.
+When the Tracker launches, the server administrator will be prompted to enter any other known trackers into the console, this will then contact the trackers (provided they've completed this step). Both trackers will then be aware of eachother. It will then display where it can be contacted by any Clients. After this it will simply display any connections and its request/response.
 
 The Client has many more interactions than the Tracker. First it will request a display name to be used. From there the Client can talk to the Tracker in order to:
 	Get a list of available channels
