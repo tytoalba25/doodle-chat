@@ -1,5 +1,7 @@
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 
 import java.net.DatagramPacket;
@@ -106,12 +108,38 @@ public class MulticastReceiver implements Runnable {
 		case "pingP2P":
 			pingP2P();
 			break;
+		case "recovery":
+			recovery();
+			break;
 		default:
 			display("\t\t\tDEBUG: Unknown tracker message: \"" + message.trim() + "\"");
 			break;
 		}
 	}
 
+	// Called when a tracker takes over for another
+	// Replies will the current list of peers
+	private void recovery() {
+		try {
+			Socket sock = new Socket(tracker, trackPort);
+			BufferedWriter sockOut = new BufferedWriter(new OutputStreamWriter(sock.getOutputStream()));
+			
+			String message = ID + "~recover " + group.recover() + "\n";
+			
+			sockOut.write(message);
+			sockOut.flush();
+			
+			
+			
+			sock.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
+	
+	
 	// Called when a peer requests a ping.
 	// Broadcast to all peers that we are still alive.
 	private void pingP2P() {

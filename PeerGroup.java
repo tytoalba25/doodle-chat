@@ -41,6 +41,28 @@ public class PeerGroup implements Iterable<Entry<Integer, Peer>>{
 		peer.startTimer();
 	}
 	
+	public String recover() {
+		// 172.19.1.23:42836/10,172.19.1.24:55519/11
+		
+		String message = channelName + " ";
+		
+		if(size() > 0) {
+			for (Map.Entry<Integer, Peer> entry : map.entrySet()) {
+				Peer peer = entry.getValue();
+				message += peer.getAddr().toString().substring(1)
+						+ ":"
+						+ peer.getPort()
+						+ "/"
+						+ peer.getID()
+						+ ",";
+			}
+			
+			message = message.substring(0, message.length() - 2);
+		}
+		
+		return message;		
+	}
+	
 	// Parses through the string the Tracker returns and creates a new Peer for all the entries in that list
 	public void addAll(String members) {
 		if(members.length() > 0) {
