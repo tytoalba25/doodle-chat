@@ -25,7 +25,8 @@ Where <port> is where which port any clients should use to communicate with the 
 Due to the formatting of XML backups, in order to run multiple trackers they must be run in seperate folders
 
 To run the Client, use:
-	java Client <tracker-address>
+	java Client <-v> <tracker-address>
+Where <-v> enables verbose mode
 Where <tracker-address> is the address where the Client should find the Tracker in the form <ip>:<port>
 
 =====
