@@ -100,8 +100,11 @@ public class MulticastReceiver implements Runnable {
 			pingP2P();
 			break;
 		case "recovery":
-			newTracker(packet);
+			newTracker(getPacketInfo(packet));
 			recovery();
+			break;
+		case "tracker":
+			newTracker(parts[1]);
 			break;
 		default:
 			display("\t\t\tDEBUG: Unknown tracker message: \"" + message.trim() + "\"");
@@ -109,19 +112,27 @@ public class MulticastReceiver implements Runnable {
 		}
 	}
 	
+	private String getPacketInfo(DatagramPacket packet) {
+		return packet.getAddress().toString().substring(1) + " : " + 5555;
+	}	
+	
 	// Once a new tracker is elected to take control it will notify the peers that it's now in control
-	private void newTracker(DatagramPacket packet) {
-		System.out.println("Changing Tracker: " + packet.getAddress().toString().substring(1) + " : " + 5555);
+	private void newTracker(String info) {
+		if(verbose)		
+			System.out.println("\t\t\tDEBUG: Changing Tracker: " + info);
 		
-		group.setTrackIP(packet.getAddress().toString().substring(1));
-		group.setTrackPort(5555);		
+		String[] parts = info.split(":");
+		
+		group.setTrackIP(parts[0]);
+		group.setTrackPort(Integer.parseInt(parts[1].trim()));		
 	}
 
 	// Called when a tracker takes over for another
 	// Replies will the current list of peers
 	private void recovery() {
 		try {
-			System.out.println("Sending recovery");
+			if(verbose)
+				System.out.println("\t\t\tDEBUG: Sending recovery");
 			Socket sock = new Socket(group.getTrackIP(), group.getTrackPort());
 			BufferedWriter sockOut = new BufferedWriter(new OutputStreamWriter(sock.getOutputStream()));
 			

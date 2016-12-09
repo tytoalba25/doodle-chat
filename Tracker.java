@@ -126,7 +126,14 @@ public class Tracker implements Runnable {
 
 					for (int i=0; i<response.length; i++) {
 						System.out.println("\t\t\t" + response[i]);
-						if (response[i].equals("error")) {
+						
+						try {						
+							if (response[i].equals("error")) {
+								System.out.println(addressList.get(i) + " has died");
+								recoverDirectory("tracker_backup.xml");
+								addressList.remove(i);	
+							}
+						} catch (NullPointerException e) {
 							System.out.println(addressList.get(i) + " has died");
 							recoverDirectory("tracker_backup.xml");
 							addressList.remove(i);	
@@ -576,7 +583,7 @@ public class Tracker implements Runnable {
 
 					DatagramSocket dsock = new DatagramSocket();
 					DatagramPacket packet;
-					String msg = "tracker " + dsock.getInetAddress() + ":5555";
+					String msg = "0~tracker " + InetAddress.getLocalHost().getHostAddress() + ":5555";
 					byte[] buffer = msg.getBytes();
 					InetAddress ipRM;
 					int portRM;
@@ -587,14 +594,14 @@ public class Tracker implements Runnable {
 						int portNum = Integer.parseInt(recoveryMembers[i].split(":")[1].split("/")[0]);
 						String addressName = recoveryMembers[i].split(":")[0];
 						int idNum =  Integer.parseInt(recoveryMembers[i].split("/")[1]);
-						dir.joinChannel(parts[2], parts[3], csocket.getRemoteSocketAddress().toString().substring(1).split(":")[0], Integer.parseInt(parts[1]));
+						dir.joinChannel(parts[2], portNum + "", csocket.getRemoteSocketAddress().toString().substring(1).split(":")[0], Integer.parseInt(parts[1]));
 
 						for (int j=0; j<dir.channelExists(parts[2]).getPopulation(); j++) {
-							System.out.println("\t==" + dir.channelExists(parts[2]).getMemberByIndex(j).getIP());
-							System.out.println("\t==" + dir.channelExists(parts[2]).getMemberByIndex(j).getPort());
-
 							ipRM =  InetAddress.getByName(dir.channelExists(parts[2]).getMemberByIndex(j).getIP());
 							portRM = dir.channelExists(parts[2]).getMemberByIndex(j).getPort();					
+
+							System.out.println("\t==" + ipRM);
+							System.out.println("\t==" + portRM);
 
 							packet = new DatagramPacket(buffer, buffer.length, ipRM, portRM);
 							dsock.send(packet);	
