@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.Scanner;
 import java.util.Arrays;
 import java.util.Timer;
+import java.util.concurrent.ThreadLocalRandom;
 
 import java.lang.String;
 
@@ -228,7 +229,10 @@ public class Tracker implements Runnable {
 
 	// Produce a new ID
 	public int giveID(String val) {
-		return val.hashCode();
+		int salt = ThreadLocalRandom.current().nextInt(0, 1000001);
+		System.out.println(val + "||" + salt);
+		val = val + salt;
+		return Math.abs(val.hashCode());
 	}
 
 	// Make sure that the ID given is registered
@@ -430,7 +434,7 @@ public class Tracker implements Runnable {
 				// Process a register request
 				if (input.startsWith("register")) {
 					System.out.println("\tProcessing register request");
-					output = Integer.toString(giveID(csocket.getRemoteSocketAddress().toString().substring(1).split(":")[0]));
+					output = Integer.toString(giveID(csocket.getRemoteSocketAddress().toString().substring(1)));
 				}
 
 				// Process a population request
