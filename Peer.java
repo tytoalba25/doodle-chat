@@ -11,9 +11,7 @@ public class Peer {
 	private int port;
 	private String channelName;
 	
-	// Tracker info
-	private String trackIP;
-	private int trackPort;
+	private PeerGroup group;
 	
 	// Timer stuff
 	private final int PING_INTERVAL = 5;
@@ -26,15 +24,14 @@ public class Peer {
 		
 	}
 	
-	public Peer(int id, InetAddress a, int p, String tip, int t, ScheduledThreadPoolExecutor stpe, String cn) {
+	public Peer(int id, InetAddress a, int p, PeerGroup g, ScheduledThreadPoolExecutor stpe, String cn) {
 		
 		ID = id;
 		addr = a;
 		port = p;
 		channelName = cn;
 		
-		trackIP = tip;
-		trackPort = t;
+		group = g;
 		pool = stpe;
 	}
 	
@@ -50,7 +47,7 @@ public class Peer {
 	// TimeoutTimer will contact the addr and ID given once it expires. It will then contact the tracker if it does not receive a response in time.
 	public void startTimer() {
 		TimeoutTimer time = new TimeoutTimer(
-				trackIP, trackPort, 
+				group.getTrackIP(), group.getTrackPort(), 
 				addr.toString().substring(1).split(":")[0], port, 
 				ID, channelName);
 		if(verbose)
