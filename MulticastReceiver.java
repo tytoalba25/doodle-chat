@@ -16,8 +16,6 @@ import java.util.Map.Entry;
 public class MulticastReceiver implements Runnable {
 
 	MulticastSocket sock = null;
-	InetAddress tracker;
-	int trackPort;
 	PeerGroup group;
 	Boolean MC = false;
 	int ID;
@@ -25,17 +23,10 @@ public class MulticastReceiver implements Runnable {
 	
 	
 	// Constructor for Basic Multicast. IP/Multicast would be preferable
-	public MulticastReceiver(String tIP, int tPort, PeerGroup group, MulticastSocket sock, int myID) {
+	public MulticastReceiver(PeerGroup group, MulticastSocket sock, int myID) {
 		this.sock = sock;
-		try {
-			this.group = group;
-			tracker = InetAddress.getByName(tIP);
-			trackPort = tPort;
-		} catch (UnknownHostException e) {
-			
-			if(verbose)
-				e.printStackTrace();
-		}
+		this.group = group;
+		
 		
 		ID = myID;
 	}
@@ -72,7 +63,7 @@ public class MulticastReceiver implements Runnable {
 	private void pingTracker() {
 		Socket sock;
 		try {
-			sock = new Socket(tracker, trackPort);
+			sock = new Socket(group.getTrackIP(), group.getTrackPort());
 			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(sock.getOutputStream()));
 			out.write("ping " + ID + " " + group.getName() + "\n\n");
 			out.flush();
@@ -88,7 +79,7 @@ public class MulticastReceiver implements Runnable {
 		System.out.println(message);
 	}
 	
-	private void trackerMessage(String message) {
+	private void trackerMessage(String message, DatagramPacket packet) {
 		if(verbose)
 			System.out.println("\t\t\tDEBUG: Special Purpose Message: " + message.trim());
 		String[] parts = message.split(" ");
@@ -109,6 +100,7 @@ public class MulticastReceiver implements Runnable {
 			pingP2P();
 			break;
 		case "recovery":
+			newTracker(packet);
 			recovery();
 			break;
 		default:
@@ -116,16 +108,24 @@ public class MulticastReceiver implements Runnable {
 			break;
 		}
 	}
+	
+	// Once a new tracker is elected to take control it will notify the peers that it's now in control
+	private void newTracker(DatagramPacket packet) {
+		System.out.println("Changing Tracker: " + packet.getAddress().toString().substring(1) + " : " + 5555);
+		
+		group.setTrackIP(packet.getAddress().toString().substring(1));
+		group.setTrackPort(5555);		
+	}
 
 	// Called when a tracker takes over for another
 	// Replies will the current list of peers
 	private void recovery() {
 		try {
 			System.out.println("Sending recovery");
-			Socket sock = new Socket(tracker, trackPort);
+			Socket sock = new Socket(group.getTrackIP(), group.getTrackPort());
 			BufferedWriter sockOut = new BufferedWriter(new OutputStreamWriter(sock.getOutputStream()));
 			
-			String message = ID + "~recover " + group.recover() + "\n";
+			String message = "recover " + ID + " " + group.recover() + "\n";
 			
 			sockOut.write(message);
 			sockOut.flush();
@@ -135,7 +135,7 @@ public class MulticastReceiver implements Runnable {
 			sock.close();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			if(verbose)
+			//if(verbose)
 				e.printStackTrace();
 		}
 		
@@ -186,7 +186,7 @@ public class MulticastReceiver implements Runnable {
 		
 		if(sender == 0) {
 			// Tracker messages have particular behavior to follow and don't need to be displayed
-			trackerMessage(parts[1]);
+			trackerMessage(parts[1], packet);
 		} else {	
 			group.getPeerByID(sender).restartTimer();
 			display(parts[1]);

@@ -384,7 +384,7 @@ public class Client {
 
 			
 			
-			MulticastReceiver mr = new MulticastReceiver(trackIP, trackPort, group, listen, ID);
+			MulticastReceiver mr = new MulticastReceiver(group, listen, ID);
 			if(verbose)
 				mr.verbose();
 		
@@ -459,8 +459,8 @@ public class Client {
 			try {
 				sock.send(packet);
 			} catch (IOException e) {
-				
-				e.printStackTrace();
+				if(verbose)
+					e.printStackTrace();
 			}
 		}
 	}

@@ -41,6 +41,22 @@ public class PeerGroup implements Iterable<Entry<Integer, Peer>>{
 		peer.startTimer();
 	}
 	
+	public int getTrackPort() {
+		return trackPort;
+	}
+	
+	public String getTrackIP() {
+		return trackIP;
+	}
+	
+	public void setTrackPort(int port) {
+		trackPort = port;
+	}
+	
+	public void setTrackIP(String IP) {
+		trackIP = IP;
+	}
+	
 	public String recover() {
 		// 172.19.1.23:42836/10,172.19.1.24:55519/11
 		
@@ -81,8 +97,7 @@ public class PeerGroup implements Iterable<Entry<Integer, Peer>>{
 								peerID,
 								InetAddress.getByName(parts[0]), 
 								Integer.parseInt(rightParts[0]),
-								trackIP,
-								trackPort,
+								this,
 								pool,
 								channelName
 						);
