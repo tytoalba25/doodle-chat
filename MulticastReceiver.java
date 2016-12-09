@@ -121,6 +121,7 @@ public class MulticastReceiver implements Runnable {
 	// Replies will the current list of peers
 	private void recovery() {
 		try {
+			System.out.println("Sending recovery");
 			Socket sock = new Socket(tracker, trackPort);
 			BufferedWriter sockOut = new BufferedWriter(new OutputStreamWriter(sock.getOutputStream()));
 			
@@ -134,7 +135,8 @@ public class MulticastReceiver implements Runnable {
 			sock.close();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			if(verbose)
+				e.printStackTrace();
 		}
 		
 	}
