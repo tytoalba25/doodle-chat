@@ -20,6 +20,7 @@ public class Peer {
 	private ScheduledThreadPoolExecutor pool;
 	private Future<?> future;
 	
+	private Boolean verbose = false;
 	
 	public Peer() {
 		
@@ -37,6 +38,10 @@ public class Peer {
 		pool = stpe;
 	}
 	
+	public void verbose () {
+		verbose = true;
+	}
+	
 	public void restartTimer() {
 		stopTimer();
 		startTimer();	
@@ -44,11 +49,14 @@ public class Peer {
 	
 	// TimeoutTimer will contact the addr and ID given once it expires. It will then contact the tracker if it does not receive a response in time.
 	public void startTimer() {
+		TimeoutTimer time = new TimeoutTimer(
+				trackIP, trackPort, 
+				addr.toString().substring(1).split(":")[0], port, 
+				ID, channelName);
+		if(verbose)
+			time.verbose();
 		future = pool.schedule(
-				new TimeoutTimer(
-						trackIP, trackPort, 
-						addr.toString().substring(1).split(":")[0], port, 
-						ID, channelName), 
+				time, 
 				PING_INTERVAL, 
 				TimeUnit.SECONDS
 		);		

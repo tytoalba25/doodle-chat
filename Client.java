@@ -35,9 +35,8 @@ public class Client {
 		MulticastSocket ms = null;
 		init(args);		
 		register();
+		createName(in);
 		
-		System.out.println("Enter display-name");
-		displayName = in.nextLine();
 		
 		while (!joined) {
 			System.out.println("What would you like to do " + displayName + "? ( list | create -channelName- | join -channelName- | quit)");
@@ -82,6 +81,26 @@ public class Client {
 		System.exit(0);
 	}
 	
+	private static void createName(Scanner in) {
+		Boolean invalid = true;
+		String name = "";
+		while(invalid) {
+			System.out.println("Enter display-name");
+			name = in.nextLine();
+			if(name.matches("[a-zA-Z]+[a-zA-Z0-9]*")) {
+				name = name.substring(0, 1).toUpperCase() 
+						+	name.substring(1);
+				invalid = false;
+			} else {
+				System.out.println("Please enter a valid name. [a-zA-Z]+[a-zA-Z0-9]\n");
+			}
+		}
+		
+		
+		displayName = name;
+	}
+	
+	
 	// Create connections and resources, catch any issues
 	private static void init(String[] args) {
 		int min = Integer.MAX_VALUE;
@@ -98,8 +117,10 @@ public class Client {
 		} else if (args.length == 1 && args[0].equals("-v")) {
 			verbose = true;
 			dir = "trackers.torChat";
-		} else {
+		} else if (args.length == 1) {
 			dir = args[0];
+		} else {
+			dir = "trackers.torChat";
 		}
 		
 		try {
@@ -151,9 +172,12 @@ public class Client {
 				}
 			} 
 			
-			
+		
 			trackIP = lowestIP;
-			trackPort = lowestPort;
+			trackPort = lowestPort;	
+			
+			if(verbose)
+				System.out.println("Chosen Tracker: " + trackIP + ":" + trackPort);
 			
 			file.close();
 			
@@ -220,15 +244,15 @@ public class Client {
 			String reply = sockIn.readLine();
 			String[] parts = reply.split(" ");
 			if(parts[0].equals("success")) {
-				
 				ms = joinChannel(channel);
 			} else {
-				System.out.println(reply);
+				if(verbose)
+					System.out.println(reply);
 				return null;
 			}
 
 		} catch (IOException e) {
-			System.out.println("Creation failed.");
+			System.err.println("Creation failed.");
 			e.printStackTrace();
 			System.exit(3);
 		}
@@ -247,7 +271,8 @@ public class Client {
 			sockOut.flush();
 
 			String reply = sockIn.readLine();
-			System.out.println(reply);
+			if(verbose)
+				System.out.println(reply);
 			String[] parts = reply.split(" ");
 			if(parts[0].equals("success")) {
 				
@@ -265,7 +290,8 @@ public class Client {
 			
 
 		} catch (IOException e) {
-			System.out.println(e.getMessage());
+			if(verbose)
+				System.out.println(e.getMessage());
 			//e.printStackTrace();
 			System.exit(3);
 		}
@@ -281,13 +307,16 @@ public class Client {
 		String[] parts = addr.split(":");
 		trackIP = parts[0];
 		trackPort = Integer.parseInt(parts[1].trim());
+		if(verbose)
+			System.out.println("Changing Tracker to: " + trackIP + ":" + trackPort);
 	}
 
 	private static MulticastSocket createMS() {
 		try {
 			return new MulticastSocket();
 		} catch (IOException e) {
-			e.printStackTrace();
+			if(verbose)
+				e.printStackTrace();
 		}
 		
 		return null;
@@ -295,6 +324,8 @@ public class Client {
 	
 	static void initGroup(String incoming) {		
 		group = new PeerGroup(trackIP, trackPort, channelName);
+		if(verbose)
+			group.verbose();
 		group.addAll(incoming);
 	}
 	
@@ -313,11 +344,13 @@ public class Client {
 				
 			} catch (NumberFormatException e) {
 				System.out.println("Registration Failed..");
-				e.printStackTrace();
+				if(verbose)
+					e.printStackTrace();
 				System.exit(7);
 			} catch (IOException e) {
 				System.out.println("Registration Failed..");
-				e.printStackTrace();
+				if(verbose)
+					e.printStackTrace();
 				System.exit(3);
 			}
 		
@@ -339,7 +372,8 @@ public class Client {
 			
 		} catch (IOException e) {
 			System.out.println("Failed to close resources");
-			e.printStackTrace();
+			if(verbose)
+				e.printStackTrace();
 		}
 	}
 	
@@ -348,8 +382,14 @@ public class Client {
 	private static void chatLoop(Scanner in, MulticastSocket listen) {
 		try {
 
+			
+			
+			MulticastReceiver mr = new MulticastReceiver(trackIP, trackPort, group, listen, ID);
+			if(verbose)
+				mr.verbose();
 		
-			Thread receiver = new Thread(new MulticastReceiver(trackIP, trackPort, group, listen, ID));
+			Thread receiver = new Thread(mr);
+			
 			receiver.start();
 		
 			
@@ -359,16 +399,23 @@ public class Client {
 			Boolean chatting = true;
 			String message = "";
 			
+			int messageID = 0;
 			
-			bMulticast(sock, displayName + " has joined the chat."); 
+			bMulticast(sock, displayName + " has joined the chat.", messageID); 
 			
 			
 			while(chatting) {
 				message = in.nextLine();
+				// Enforce 100 character limit
+				if(message.length() > 100) {
+					message = message.substring(0, 99);
+					if(verbose)
+						System.out.println("\t\t\tDEBUG: String exceeded limit");
+				}
 				if(message.equals("/quit")) {
 					try {
 						
-						bMulticast(sock, displayName + " has left the chat."); 
+						bMulticast(sock, displayName + " has left the chat.", messageID); 
 						
 						
 						openSocket();
@@ -381,8 +428,9 @@ public class Client {
 					}
 					break;
 				} else {
-					bMulticast(sock, (displayName + ": " + message));
+					bMulticast(sock, (displayName + ": " + message), messageID);
 				}
+				messageID++;
 			}
 
 			receiver.interrupt();
@@ -397,10 +445,10 @@ public class Client {
 	}
 	
 	// Sends out a UDP message to each peer one at a time
-	private static synchronized void bMulticast(DatagramSocket sock, String plainText) {
+	private static synchronized void bMulticast(DatagramSocket sock, String plainText, int messageID) {
 		//System.out.println(message);
 		
-		String message = ID + "~" + plainText;
+		String message = ID + "*" + messageID + "~" + plainText;
 		
 		byte[] buffer = message.getBytes();
 		DatagramPacket packet;

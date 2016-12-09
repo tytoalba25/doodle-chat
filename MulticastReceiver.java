@@ -19,6 +19,7 @@ public class MulticastReceiver implements Runnable {
 	PeerGroup group;
 	Boolean MC = false;
 	int ID;
+	private Boolean verbose = false;
 	
 	
 	// Constructor for Basic Multicast. IP/Multicast would be preferable
@@ -30,10 +31,15 @@ public class MulticastReceiver implements Runnable {
 			trackPort = tPort;
 		} catch (UnknownHostException e) {
 			
-			e.printStackTrace();
+			if(verbose)
+				e.printStackTrace();
 		}
 		
 		ID = myID;
+	}
+	
+	public void verbose() {
+		verbose = true;
 	}
 	
 	public void run() {		
@@ -51,10 +57,12 @@ public class MulticastReceiver implements Runnable {
 			}
 		} catch (SocketException e) {
 			
-			e.printStackTrace();
+			if(verbose)
+				e.printStackTrace();
 		} catch (IOException e) {
 			
-			e.printStackTrace();
+			if(verbose)
+				e.printStackTrace();
 		}		
 	}
 	
@@ -69,8 +77,8 @@ public class MulticastReceiver implements Runnable {
 			out.close();
 			sock.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			if(verbose)
+				e.printStackTrace();
 		}
 	}
 	
@@ -79,12 +87,14 @@ public class MulticastReceiver implements Runnable {
 	}
 	
 	private void trackerMessage(String message) {
+		if(verbose)
+			System.out.println("\t\t\tDEBUG: Special Purpose Message: " + message.trim());
 		String[] parts = message.split(" ");
 		
 		switch(parts[0].trim()) {
 		
 		case "update":
-			display("\t\t\tDEBUG: Members: " + parts[1]);
+			display("\tNew Members: " + parts[1]);
 			updateMembers(parts[1]);
 			break;
 		case "keep-alive":
@@ -97,7 +107,7 @@ public class MulticastReceiver implements Runnable {
 			pingP2P();
 			break;
 		default:
-			display("\t\t\tDEBUG: Unknown tracker message: \"" + message + "\"");
+			display("\t\t\tDEBUG: Unknown tracker message: \"" + message.trim() + "\"");
 			break;
 		}
 	}
@@ -118,8 +128,8 @@ public class MulticastReceiver implements Runnable {
 			try {
 				sock.send(packet);
 			} catch (IOException e) {
-
-				e.printStackTrace();
+				if(verbose)
+					e.printStackTrace();
 			}
 		}
 		
@@ -137,8 +147,11 @@ public class MulticastReceiver implements Runnable {
 	private void recieved(DatagramPacket packet) throws UnknownHostException {
 		String data = new String(packet.getData());
 		String[] parts = data.split("~");
-		int sender = Integer.parseInt(parts[0]);
-		
+		String[] nums = parts[0].split("\\*");
+		int sender = Integer.parseInt(nums[0]);
+		int messageID;
+		if(sender != 0) 
+			messageID = Integer.parseInt(nums[1]);
 		
 		
 		if(sender == 0) {

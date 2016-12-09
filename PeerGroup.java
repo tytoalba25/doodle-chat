@@ -22,7 +22,7 @@ public class PeerGroup implements Iterable<Entry<Integer, Peer>>{
 	// Channel info
 	private String channelName;
 	
-	
+	private Boolean verbose = false;
 	
 	public PeerGroup(String trackIP, int trackPort, String cn) {
 		map = new Hashtable<Integer, Peer>();
@@ -30,6 +30,10 @@ public class PeerGroup implements Iterable<Entry<Integer, Peer>>{
 		this.trackPort = trackPort;
 		pool = new ScheduledThreadPoolExecutor(MAX_PEERS);
 		channelName = cn;
+	}
+	
+	public void verbose() {
+		verbose = true;
 	}
 	
 	public void addPeer(Peer peer) {
@@ -61,6 +65,8 @@ public class PeerGroup implements Iterable<Entry<Integer, Peer>>{
 								channelName
 						);
 						addPeer(newPeer);
+						if(verbose)
+							newPeer.verbose();
 						newPeer.startTimer();
 					}
 				}

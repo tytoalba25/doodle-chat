@@ -9,8 +9,9 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-
+import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 
 public class TimeoutTimer extends TimerTask{
 	int ID;
@@ -25,6 +26,8 @@ public class TimeoutTimer extends TimerTask{
 	String trackerIP;
 	int trackerPort;
 	
+	private Boolean verbose = false;
+	
 	
 	public TimeoutTimer(String tip, int tpo, String pip, int ppo, int ID, String cn) {
 		peerIP = pip;
@@ -34,9 +37,12 @@ public class TimeoutTimer extends TimerTask{
 		trackerPort = tpo;
 		
 		
-		
 		this.ID = ID;
 		channelName = cn;
+	}
+	
+	public void verbose() {
+		verbose = true;
 	}
 	
 	public void run() {
@@ -46,7 +52,8 @@ public class TimeoutTimer extends TimerTask{
 			Thread.sleep(1000);;
 			sendTrackRequest();
 		} catch (InterruptedException e) {
-			//System.out.println("\t\t\tDEBUG: Peer " + ID + " replied, keeping alive.");
+			if(verbose)
+				System.out.println("\t\t\tDEBUG: Peer " + ID + " replied, keeping alive.");
 		}
 	}
 	
@@ -59,9 +66,11 @@ public class TimeoutTimer extends TimerTask{
 			out.flush();
 			sock.close();
 		} catch (ConnectException e) {
-			System.out.println("\t\t\tPING-ERROR: Tracker unreachable.");
+			if(verbose)
+				System.out.println("\t\t\tPING-ERROR: Tracker unreachable.");
 		} catch (IOException e) {
-			e.printStackTrace();
+			if(verbose)
+				e.printStackTrace();
 		} 
 	}
 	
@@ -77,18 +86,18 @@ public class TimeoutTimer extends TimerTask{
 				DatagramPacket pack = new DatagramPacket(buff, buff.length, InetAddress.getByName(peerIP), peerPort);
 				sock.send(pack);
 			} catch (UnknownHostException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				if(verbose)
+					e.printStackTrace();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				if(verbose)
+					e.printStackTrace();
 			}
 			
 			sock.close();
 			
 		} catch (SocketException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			if(verbose)
+				e.printStackTrace();
 		}
 		
 	}
