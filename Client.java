@@ -176,6 +176,13 @@ public class Client {
 			trackIP = lowestIP;
 			trackPort = lowestPort;	
 			
+			if(lowestPort == -1) {
+				System.out.println("No trackers found");
+				System.out.println("Please verify the .tracker file.");
+				System.exit(5);
+			}			
+						
+
 			if(verbose)
 				System.out.println("Chosen Tracker: " + trackIP + ":" + trackPort);
 			
