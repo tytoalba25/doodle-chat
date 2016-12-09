@@ -98,16 +98,16 @@ public class Tracker implements Runnable {
 
 		// Connects to listed trackers
 		if (addressList.size() != 0) {
-			rMulticast(addressList, 5555, "new-tracker -1");
+			String[] resp = rMulticast(addressList, 5555, "new-tracker -1");
 		}
 
 		// Trys to load tracker_copy.xml
-		File f = new File("tracker_copy.xml");
-		if (f.exists() && !f.isDirectory()) {
-			dir.loadTracker("tracker_copy.xml");
-		} else {
-			System.out.println("Unable to open tracker_copy.xml, starting blank tracker");
-		}
+		//File f = new File("tracker_copy.xml");
+		//if (f.exists() && !f.isDirectory()) {
+		//	dir.loadTracker("tracker_copy.xml");
+		//} else {
+		//	System.out.println("Unable to open tracker_copy.xml, starting blank tracker");
+		//}
 
 		// Set up our identifier
 		id = 1;
@@ -116,12 +116,22 @@ public class Tracker implements Runnable {
 		ServerSocket ssock = new ServerSocket(port);
 
 		// Set up periodic tracker updates
+		// This also handles detecting crashed trackers
 		Timer timer = new Timer();
 		timer.schedule(new TimerTask() {
 			public void run() {
 				try {
 					String content = new String(readAllBytes(get("tracker_copy.xml")));
-					rMulticast(addressList, 5555, content);
+					String[] response = rMulticast(addressList, 5555, content);
+
+					for (int i=0; i<response.length; i++) {
+						System.out.println("\t\t\t" + response[i]);
+						if (response[i].equals("error")) {
+							System.out.println(addressList.get(i) + " has died");
+							recoverDirectory("tracker_backup.xml");
+							addressList.remove(i);	
+						}
+					}
 				} catch (IOException e) {
 					System.out.println("Unable to load tracker_copy");
 				}
@@ -133,6 +143,44 @@ public class Tracker implements Runnable {
 			new Thread(new Tracker(sock, dir)).start();
 			dir.saveTracker("tracker_copy.xml");
 		}
+	}
+
+	public static void recoverDirectory(String deadAddress) {
+		System.out.println("Taking over " + deadAddress + "'s channels");
+
+		Directory deadDirectory = new Directory();
+		deadDirectory.loadTracker(deadAddress);
+
+		String[] channels = deadDirectory.getChannels().split(",");
+		for (int i=0; i<channels.length; i++) {
+			dir.addChannel(channels[i]);
+		}
+
+		try {
+			DatagramSocket sock = new DatagramSocket();
+			DatagramPacket packet;
+			InetAddress ip;
+			int port;
+			String message = "0~recovery";
+			byte[] buffer = message.getBytes();
+			String[] members;
+			for(int i=0; i<deadDirectory.getPop(); i++) {
+				members = deadDirectory.getMembers(channels[i]).split(",");
+				for (int j=0; j<members.length; j++) {
+					try {
+						ip = InetAddress.getByName(members[j].split(":")[0]);
+						port = Integer.parseInt(members[j].split(":")[1].split("/")[0]);
+						packet = new DatagramPacket(buffer, buffer.length, ip, port);
+						sock.send(packet);
+					} catch (Exception e) {
+						System.out.println(e);
+					}
+				}
+			}	
+		} catch (Exception e) {
+			System.out.println(e);
+		}	
+			
 	}
 
 	// Sends a message over TCP to a series of addresses
@@ -161,11 +209,9 @@ public class Tracker implements Runnable {
 
 				System.out.println("\t\t DEBUG: Message sent to " + addresses.get(i));
 
-			} catch (UnknownHostException e) {
+			} catch (Exception e) {
 				System.out.println(addresses.get(i) + " not reached");
-			} catch (IOException e) {
-				System.out.println(e);
-				System.out.println(addresses.get(i) + " not reached");
+				response[i] = "error";
 			}
 		}
 
@@ -517,14 +563,46 @@ public class Tracker implements Runnable {
 
 					System.out.println(input);
 
-					PrintWriter fout = new PrintWriter(csocket.getRemoteSocketAddress().toString().substring(1).split(":")[0] + "_backup.xml");
+					PrintWriter fout = new PrintWriter("tracker_backup.xml");
 					fout.println(input);
 					fout.close();
 				
 					output = "success";
 				}
 
+				// Process a recovery request
+				if (input.startsWith("recover")) {
+					System.out.println("Processing recover request");
 
+					DatagramSocket dsock = new DatagramSocket();
+					DatagramPacket packet;
+					String msg = "tracker " + dsock.getInetAddress() + ":5555";
+					byte[] buffer = msg.getBytes();
+					InetAddress ipRM;
+					int portRM;
+
+					String channelName = parts[2];
+					String[] recoveryMembers = parts[3].split(",");
+					for (int i=0; i<recoveryMembers.length; i++) {
+						int portNum = Integer.parseInt(recoveryMembers[i].split(":")[1].split("/")[0]);
+						String addressName = recoveryMembers[i].split(":")[0];
+						int idNum =  Integer.parseInt(recoveryMembers[i].split("/")[1]);
+						dir.joinChannel(parts[2], parts[3], csocket.getRemoteSocketAddress().toString().substring(1).split(":")[0], Integer.parseInt(parts[1]));
+
+						for (int j=0; j<dir.channelExists(parts[2]).getPopulation(); j++) {
+							System.out.println("\t==" + dir.channelExists(parts[2]).getMemberByIndex(j).getIP());
+							System.out.println("\t==" + dir.channelExists(parts[2]).getMemberByIndex(j).getPort());
+
+							ipRM =  InetAddress.getByName(dir.channelExists(parts[2]).getMemberByIndex(j).getIP());
+							portRM = dir.channelExists(parts[2]).getMemberByIndex(j).getPort();					
+
+							packet = new DatagramPacket(buffer, buffer.length, ipRM, portRM);
+							dsock.send(packet);	
+						}
+					}
+					dsock.close();
+				}
+					
 			} catch (Exception e) {
 				System.out.println(e);
 				e.printStackTrace();
