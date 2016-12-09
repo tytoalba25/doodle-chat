@@ -116,11 +116,11 @@ public class Client {
 			dir = args[1];
 		} else if (args.length == 1 && args[0].equals("-v")) {
 			verbose = true;
-			dir = "trackers.torChat";
+			dir = "default.tracker";
 		} else if (args.length == 1) {
 			dir = args[0];
 		} else {
-			dir = "trackers.torChat";
+			dir = "default.tracker";
 		}
 		
 		try {
